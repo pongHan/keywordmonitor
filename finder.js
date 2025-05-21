@@ -523,7 +523,7 @@ async function crawlWithPuppeteer(config) {
                         result.push({ title: titleText, link });
                         if (postDate) {
                             const diff = today.diff(postDate, 'day');
-                            if (diff <= 2) {
+                            if (diff <= 200) {
                                 log('info', `📬 작성일 ${postDate.format('YYYY-MM-DD')} => 최근 글이므로 메일 발송`);
                                 postsToNotify.push({ title: titleText, link, date: postDate.format('YYYY-MM-DD') });
                             } else {
@@ -568,10 +568,9 @@ async function crawlWithPuppeteer(config) {
 // 게시판 파싱 (텍스트 또는 OCR)
 async function fetchBoard(config) {
     const { url, keyword, board_type, board_name, parsing_config, receiver_email, receiver_name } = config;
-    log('info', 'fetchBoard: keyword=' + keyword);
+    log('info', `>>>> ${board_name} ${board_type} ${keyword}` );
     const modifiedUrl = url.replace(/\$keyword/i, encodeURIComponent(keyword));
-    log('info', `fetchBoard: modifiedUrl=${modifiedUrl}`);
-    log('info', `🌐 Fetching board: ${modifiedUrl}, Keyword: ${keyword}, Board Type: ${board_type}`);
+    log('info', `🌐 Fetching board: ${modifiedUrl}`);
     const parsingType = parsing_config.parsing_type || 'text';
     if (parsingType === 'ocr') {
         await fs.mkdir(SCREENSHOT_DIR, { recursive: true });
@@ -600,7 +599,7 @@ async function fetchBoard(config) {
                         const postDate = dayjs(formattedDate);
                         const today = dayjs();
                         const diff = today.diff(postDate, 'day');
-                        if (diff <= 2) {
+                        if (diff <= 200) {
                             log('info', `📬 작성일 ${postDate.format('YYYY-MM-DD')} => 최근 글이므로 메일 발송`);
                             postsToNotify.push({ title: line, link, date: postDate.format('YYYY-MM-DD') });
                         } else {
