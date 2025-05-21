@@ -1,0 +1,71 @@
+[
+    {
+      "id": 1,
+      "url": "http://alpha1room.cafe24.com/bbs/board.php?bo_table=notice",
+      "board_type": "notice",
+      "board_name": "알파룸",
+      "keyword" : "백종원",
+      "parsing_config": {
+        "container": { "tag": "div", "id": "view_2" },
+        "title": { "tag": "font", "size": "3" },
+        "date": { "tag": "font", "color": "#00BFFF" },
+        "link": "date_based",
+        "parsing_type": "text"
+      }
+    },
+    {
+      "id": 2,
+      "url": "http://alpha1room.cafe24.com/bbs/board.php?bo_table=inquiry",
+      "board_type": "inquiry",
+      "board_name": "알파룸",
+      "keyword" : "백종원",
+      "parsing_config": {
+        "container": { "tag": "div", "style": "border:1px solid #ddd" },
+        "title": { "tag": "div", "style": "color:#505050" },
+        "link": { "tag": "a", "onclick": "trackback_send_server" },
+        "parsing_type": "text"
+      }
+    },
+    {
+      "id": 3,
+      "url": "https://www.pgr21.com/humor/0",
+      "board_type": "pgr21_humor",
+      "board_name": "PGR21 Humor",
+      "keyword" : "백종원",
+      "parsing_config": {
+        "container": { "tag": "tr", "class": "listtr" },
+        "title": { "tag": "td", "class": "tdsub", "search_all": false },
+        "date": { "tag": "td", "class": "tddate", "index": 4 },
+        "link": { "tag": "a", "href": true },
+        "parsing_type": "text"
+      }
+    },
+    {
+      "id": 4,
+      "url": "https://www.fmkorea.com/best",
+      "board_type": "fmkorea",
+      "board_name": "펨코",
+      "keyword" : "백종원",
+      "parsing_config": {
+        "container": { "tag": "li", "class": "li" },
+        "title": { "tag": "h3", "class": "title" },
+        "date": { "tag": "span", "class": "regdate" },
+        "link": { "tag": "a", "href": true },
+        "parsing_type": "text"
+      }
+    },
+    {
+      "id": 5,
+      "url": "https://www.sbiz24.kr/#/cmmn/gnrl/bbs/4?aditFieldNm1=13&pstTtl&mySearch=N&isSearch=Y",
+      "board_type": "sbiz24_notice",
+      "board_name": "희망리턴패키지",
+      "keyword" : "모집",
+      "parsing_config": {
+        "container": { "tag": "tr" },
+        "title": { "tag": "td", "search_all": true },
+        "date": { "tag": "td", "index": 3 },
+        "link": "date_based",
+        "parsing_type": "ocr"
+      }
+    }
+  ]

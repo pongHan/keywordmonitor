@@ -1,0 +1,52 @@
+[
+    {
+      "id": 1,
+      "receiver_name": "수신자",
+      "receiver_email": "modeller@naver.com",
+      "board_config_id": 1,
+      "keyword" : "백종원",
+      "status": "close",
+      "start_date": "2025-01-01",
+      "end_date": "2025-12-30"
+    },
+    {
+      "id": 2,
+      "receiver_name": "수신자",
+      "receiver_email": "modeller@naver.com",
+      "board_config_id": 2,
+      "keyword" : "백종원",
+      "status": "close",
+      "start_date": "2025-01-01",
+      "end_date": "2025-12-30"
+    },
+    {
+      "id": 3,
+      "receiver_name": "수신자",
+      "receiver_email": "modeller@naver.com",
+      "board_config_id": 3,
+      "keyword" : "백종원",
+      "status": "open",
+      "start_date": "2025-01-01",
+      "end_date": "2025-12-30"
+    },
+    {
+      "id": 4,
+      "receiver_name": "수신자",
+      "receiver_email": "modeller@naver.com",
+      "board_config_id": 4,
+      "keyword" : "백종원",
+      "status": "open",
+      "start_date": "2025-01-01",
+      "end_date": "2025-12-30"
+    },
+    {
+      "id": 5,
+      "receiver_name": "수신자",
+      "receiver_email": "modeller@naver.com",
+      "board_config_id": 5,
+      "keyword" : "백종원",
+      "status": "close",
+      "start_date": "2025-01-01",
+      "end_date": "2025-12-30"
+    }
+  ]
