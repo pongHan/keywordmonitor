@@ -56,7 +56,7 @@
   {
     "receiver_name": "수신자",
     "receiver_email": "modeller@naver.com",
-    "url": "https://www.fmkorea.com/best",
+    "url": "https://www.fmkorea.com/search.php?mid=best&listStyle=webzine&search_keyword=$keyword&search_target=title_content&page=1",
     "keyword": "손흥민",
     "board_type": "fmkorea",
     "board_name": "펨코",

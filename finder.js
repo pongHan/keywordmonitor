@@ -137,7 +137,7 @@ async function sendEmail({ subject, posts, receiverEmail, receiverName }) {
             <tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">${post.title}</td>
                 <td style="border: 1px solid #ddd; padding: 8px;"><a href="${post.link}">${post.link}</a></td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${post.date || '알 수 없음'}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${post.date || ''}</td>
             </tr>
         `;
     });
@@ -274,9 +274,9 @@ function extractDate($, post, dateConfig, boardType, today) {
             const relativeTime = dateElement.text().trim();
             let absoluteTimeComment = dateElement.html().match(/<!--\s*(\d{2}:\d{2})\s*-->/); // 배열 반환
             absoluteTimeComment = absoluteTimeComment ? absoluteTimeComment[0] : ''; // 첫 번째 매칭 결과 또는 빈 문자열
-            log('debug', `Extracted HTML for date: ${dateElement.html()}`);
+            //log('debug', `Extracted HTML for date: ${dateElement.html()}`);
             postDate = parseRelativeTime(relativeTime, absoluteTimeComment, today);
-            log('debug', `Parsed FMKorea date: ${postDate ? postDate.format('YYYY-MM-DD HH:mm') : 'null'}`);
+            //log('debug', `Parsed FMKorea date: ${postDate ? postDate.format('YYYY-MM-DD HH:mm') : 'null'}`);
         } else {
             const altDateElement = $(post).find('div').text();
             const altDateMatch = altDateElement.match(/\d{4}-\d{2}-\d{2}/);
@@ -284,7 +284,7 @@ function extractDate($, post, dateConfig, boardType, today) {
                 const formattedDate = parseDate(altDateMatch[0]);
                 if (formattedDate) {
                     postDate = dayjs(formattedDate);
-                    log('debug', `Parsed alternative date: ${postDate.format('YYYY-MM-DD')}`);
+                    //log('debug', `Parsed alternative date: ${postDate.format('YYYY-MM-DD')}`);
                 }
             }
         }
@@ -307,6 +307,7 @@ function extractDate($, post, dateConfig, boardType, today) {
 }
 
 // FMKorea 상대적 시간 파싱 함수
+// FMKorea 상대적 시간 파싱 함수
 function parseRelativeTime(relativeTime, absoluteTimeComment, today) {
     log('debug', `Parsing relative time: ${relativeTime}, Absolute time comment raw: ${absoluteTimeComment}`);
 
@@ -320,7 +321,7 @@ function parseRelativeTime(relativeTime, absoluteTimeComment, today) {
 
     let absoluteTime = null;
     if (absoluteTimeComment && typeof absoluteTimeComment === 'string') {
-        const timeMatch = absoluteTimeComment.match(/<!--\s*(\d{2}:\d{2})\s*-->/);
+        const timeMatch = absoluteTimeComment.match(/<!--\s*(\d{2}:\d{2})\s*-->/); // 기존 정규 표현식
         if (timeMatch && timeMatch[1]) {
             absoluteTime = timeMatch[1];
             log('debug', `Extracted absolute time: ${absoluteTime}`);
@@ -381,41 +382,27 @@ function parseDate(dateStr) {
 
 
 // 게시판 파싱 (텍스트 또는 OCR)
+// Puppeteer로 크롤링
 async function crawlWithPuppeteer(config) {
-    const {
-        url,
-        keyword,
-        board_type,
-        board_name,
-        parsing_config,
-        receiver_email,
-        receiver_name
-    } = config;
+    const { url, keyword, board_type, board_name, parsing_config, receiver_email, receiver_name } = config;
 
+    // config.url에서 $keyword를 실제 keyword로 치환
+    const modifiedUrl = url.replace('$keyword', encodeURIComponent(keyword));
+    
     const RETRY_ATTEMPTS = 3;
-    const RETRY_DELAY = 5000;
+    const RETRY_DELAY = 3000;
     let attempt = 0;
 
     while (attempt < RETRY_ATTEMPTS) {
         try {
-            const browser = await puppeteer.launch({
-                headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
-            });
-
+            const browser = await puppeteer.launch({ headless: 'new' });
             const page = await browser.newPage();
 
-            await page.setUserAgent(
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-            );
-            await page.setJavaScriptEnabled(true);
-            await page.setViewport({ width: 1366, height: 768 });
+            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
 
-            log('info', `🌐 Fetching board: ${url}, Keyword: ${keyword}, Board Type: ${board_type}`);
-
-            await page.goto(url, {
+            await page.goto(modifiedUrl, {
                 waitUntil: 'networkidle2',
-                timeout: 30000
+                timeout: 20000
             });
 
             const content = await page.content();
@@ -430,13 +417,14 @@ async function crawlWithPuppeteer(config) {
 
             posts.each((_, post) => {
                 let titleText = extractTitle($, post, parsing_config.title, board_type);
-                let link = extractLink($, post, parsing_config.link, url, titleText);
+                log('info', 'title='+titleText);
+
+                let link = extractLink($, post, parsing_config.link, modifiedUrl, titleText);
                 let postDate = extractDate($, post, parsing_config.date, board_type, today);
 
                 if (titleText && link) {
                     titleText = titleText.replace(/\s+/g, ' ');
                     const normalizedTitle = titleText.toLowerCase();
-                    log('info', normalizedTitle);
                     if (normalizedTitle.includes(keyword)) {
                         result.push({ title: titleText, link });
                         if (postDate) {
@@ -453,7 +441,7 @@ async function crawlWithPuppeteer(config) {
                         }
                     }
                 } else {
-                    log('warning', `🚫 제목 또는 링크 누락된 게시글 무시`);
+                    log('warning', `Missing title or link in post at ${modifiedUrl}`);
                 }
             });
 
@@ -466,20 +454,17 @@ async function crawlWithPuppeteer(config) {
                 });
             }
 
-            log('debug', `✅ Fetched ${result.length} posts from ${url}: ${JSON.stringify(result)}`);
+            log('debug', `Fetched ${result.length} posts from ${modifiedUrl}: ${JSON.stringify(result)}`);
             return result;
 
         } catch (error) {
             attempt++;
-            log('warning', `⚠️ Received error on attempt ${attempt}: ${error.message}`);
-            if (error.message.includes('430') || error.message.includes('403')) {
-                log('warning', `🚫 430/403 에러 감지 → 재시도까지 ${RETRY_DELAY / 1000}초 대기`);
-            }
+            log('warning', `Puppeteer error on attempt ${attempt}: ${error.message}`);
             if (attempt < RETRY_ATTEMPTS) {
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
                 continue;
             } else {
-                log('error', `❌ Failed to crawl ${url} after ${RETRY_ATTEMPTS} attempts: ${error.message}`);
+                log('error', `Failed to crawl ${modifiedUrl} after ${RETRY_ATTEMPTS} attempts: ${error.message}`);
                 return [];
             }
         }
@@ -487,12 +472,16 @@ async function crawlWithPuppeteer(config) {
 }
 
 // 게시판 파싱 (텍스트 또는 OCR)
-async function fetchBoard(boardConfig, requestConfig) {
-    const { url, keyword, board_type, board_name, parsing_config } = boardConfig;
-    const { receiver_email, receiver_name } = requestConfig;
+async function fetchBoard(config) {
+    const { url, keyword, board_type, board_name, parsing_config, receiver_email, receiver_name } = config;
 
-    log('info', `Fetching board: ${url}, Keyword: ${keyword}, Board Type: ${board_type}`);
-   // log('debug', `Parsing Config: ${JSON.stringify(parsing_config, null, 2)}`);
+    log('info', 'fetchBoard: keyword='+keyword);
+    // config.url에서 $keyword를 실제 keyword로 치환 (대소문자 구분 없이)
+    const modifiedUrl = url.replace(/\$keyword/i, encodeURIComponent(keyword));
+
+    log('info', `fetchBoard: modifiedUrl=${modifiedUrl}`);
+    log('info', `🌐 Fetching board: ${modifiedUrl}, Keyword: ${keyword}, Board Type: ${board_type}`);
+    //log('debug', `Parsing Config: ${JSON.stringify(parsing_config, null, 2)}`);
 
     const parsingType = parsing_config.parsing_type || 'text';
 
@@ -500,7 +489,7 @@ async function fetchBoard(boardConfig, requestConfig) {
         await fs.mkdir(SCREENSHOT_DIR, { recursive: true });
         const screenshotPath = path.join(SCREENSHOT_DIR, `${Date.now()}_page.png`);
         log('info', '📸 Taking screenshot...');
-        await captureScreenshot(url, screenshotPath);
+        await captureScreenshot(modifiedUrl, screenshotPath);
 
         log('info', '🔍 Running OCR...');
         const ocrText = await runOCR(screenshotPath);
@@ -520,7 +509,7 @@ async function fetchBoard(boardConfig, requestConfig) {
             lines.forEach((line, index) => {
                 const normalizedLine = line.toLowerCase().replace(/\s+/g, ' ');
                 if (keyword && normalizedLine.includes(keyword)) {
-                    const link = `${url}#line_${index}`;
+                    const link = `${modifiedUrl}#line_${index}`;
                     result.push({ title: line, link });
 
                     log('info', `${index + 1}. ${line} (Link: ${link})`);
@@ -556,10 +545,10 @@ async function fetchBoard(boardConfig, requestConfig) {
             log('info', `\n❌ 키워드 "${keyword}"가 감지되지 않았습니다.`);
         }
 
-        log('debug', `Fetched ${result.length} posts from ${url}: ${JSON.stringify(result)}`);
+        log('debug', `Fetched ${result.length} posts from ${modifiedUrl}: ${JSON.stringify(result)}`);
         return result;
     } else {
-        return await crawlWithPuppeteer(boardConfig, requestConfig);
+        return await crawlWithPuppeteer(config);
     }
 }
 
@@ -606,6 +595,7 @@ async function main() {
 
             log('info', `Processing board ${board_name}: Status is "open" and today (${today.format('YYYY-MM-DD')}) is between ${start_date} and ${end_date}`);
             const normalizedKeyword = keyword.toLowerCase().replace(/\s+/g, ' ');
+            log('info', 'keyword='+ normalizedKeyword);
             const posts = await fetchBoard({ ...config, keyword: normalizedKeyword }, config);
         }
     }
