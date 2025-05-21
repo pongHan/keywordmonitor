@@ -82,3 +82,4 @@ node_modules/
 dist/
 build/
 screenshots/  # 이전 코드에서 사용된 스크린샷 디렉토리
+logs/
