@@ -9,6 +9,7 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const Tesseract = require('tesseract.js');
 const path = require('path');
 const dayjs = require('dayjs');
+const mysql = require('mysql2/promise'); // Changed to mysql2 for MySQL support
 
 // 스텔스 플러그인 등록
 puppeteer.use(StealthPlugin());
@@ -19,6 +20,19 @@ const SENDER_PASSWORD = process.env.SENDER_PASSWORD;
 const RECEIVER_EMAIL = process.env.RECEIVER_EMAIL;
 const SMTP_SERVER = process.env.SMTP_SERVER;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10);
+
+
+// Database connection pool setup for MySQL
+const db = mysql.createPool({
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
+    port: process.env.DB_PORT || 3306,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
 
 // 설정
 const CONFIG_FILE = 'config.json';
@@ -446,6 +460,9 @@ async function crawlWithPuppeteer(config) {
             });
 
             if (postsToNotify.length > 0) {
+                for (const post of postsToNotify) {
+                    await insertNotificationData(config, post.title);
+                }
                 await sendEmail({
                     subject: `[알림] 키워드 "${keyword}" 관련 최근 게시물`,
                     posts: postsToNotify,
@@ -470,6 +487,66 @@ async function crawlWithPuppeteer(config) {
         }
     }
 }
+
+const insertNotificationData = async (config, detectedTitle, timeWindowMinutes = 10) => {
+    try {
+        // Check for existing record within the time window
+        const checkQuery = `
+            SELECT detect_id
+            FROM km_detect
+            WHERE req_id = ?
+            AND post_url = ?
+            AND post_title = ?
+            AND detect_datetime >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+            LIMIT 1
+        `;
+        const checkValues = [
+            config.id,
+            config.url,
+            detectedTitle,
+            timeWindowMinutes
+        ];
+
+        const [existing] = await db.query(checkQuery, checkValues);
+
+        if (existing.length > 0) {
+            log('info', `Skipping insert: Duplicate found for req_id=${config.id}, post_url=${config.url}, post_title=${detectedTitle} within last ${timeWindowMinutes} minutes`);
+            return { inserted: false, id: existing[0].id };
+        }
+
+        // No duplicate found, proceed with insert
+        const insertQuery = `
+            INSERT INTO km_detect (
+                req_id,
+                req_mb_id,
+                board_name,
+                post_url,
+                keyword,
+                detect_datetime,
+                post_title,
+                detect_status
+            ) VALUES (?, ?, ?, ?, ?, NOW(), ?, '1')
+        `;
+        
+        const insertValues = [
+            config.id,
+            config.receiver_email,
+            config.board_name,
+            config.url,
+            config.keyword,
+            detectedTitle
+        ];
+        
+        const [result] = await db.query(insertQuery, insertValues);
+        log('info', `Inserted notification data with ID: ${result.insertId}`);
+        return { inserted: true, detect_id: result.insertId };
+    } catch (error) {
+        log('error', `Error in insertNotificationData: ${error.message}`);
+        throw error;
+    }
+};
+
+
 
 // 게시판 파싱 (텍스트 또는 OCR)
 async function fetchBoard(config) {
@@ -534,6 +611,10 @@ async function fetchBoard(config) {
             });
 
             if (postsToNotify.length > 0) {
+                for (const post of postsToNotify) {
+                    await insertNotificationData(config, post.title, 10);
+                }
+
                 await sendEmail({
                     subject: `[알림] 키워드 "${keyword}" 관련 최근 게시물`,
                     posts: postsToNotify,

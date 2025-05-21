@@ -26,7 +26,7 @@ const KmDetectData = sequelize.define('KmDetectData', {
     defaultValue: '',
     comment: '게시판명',
   },
-  board_url: {
+  post_url: {
     type: DataTypes.STRING(500),
     allowNull: false,
     defaultValue: '',
@@ -73,7 +73,7 @@ const KmDetectData = sequelize.define('KmDetectData', {
     comment: '조치일시',
   },
 }, {
-  tableName: 'km_detect_data',
+  tableName: 'km_detect',
   charset: 'utf8',
   collate: 'utf8_general_ci',
   engine: 'MyISAM',
