@@ -127,7 +127,7 @@ exports.getDetects = async (req, res, next) => {
       if (rows.length > 0) {
         rows.map(elem => {
           for (const [key, value] of Object.entries(elem)) {
-            if (typeof value === "object" && value !== undefined) {
+            if (typeof value === "object" && value !== null && value !== undefined) {
               elem[key] = value.toString('utf8');
             }
           }
@@ -244,7 +244,7 @@ exports.viewDetect = async (req, res, next) => {
   const row = await sequelize.query(query, { type: QueryTypes.SELECT, raw: true }).catch(err => { console.error(err); });
   row.map(elem => {
     for (const [key, value] of Object.entries(elem)) {
-      if (typeof value === "object" && value !== undefined) {
+      if (typeof value === "object" && value !== null && value !== undefined) {
         elem[key] = value.toString('utf8');
       }
     }

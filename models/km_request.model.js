@@ -79,6 +79,11 @@ module.exports = (sequelize, DataTypes) => {
           allowNull: false,
           get() { return this.getDataValue('end_date').toString('utf8'); }
         },
+        email_send_yn: {
+          type: DataTypes.STRING(1),
+          allowNull: false,
+          get() { return this.getDataValue('email_send_yn').toString('utf8'); }
+        },
         pay_type: {
           type: DataTypes.STRING(20),
           allowNull: false,

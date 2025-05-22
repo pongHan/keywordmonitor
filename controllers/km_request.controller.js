@@ -49,7 +49,7 @@ exports.getRequests = async (req, res, next) => {
   let paging = commonLib.getPaging(page, pageRow, pageScale, totalCount, selfUrl, `&iWord=${iWord}`);
 
   query = `SELECT req_id, req_mb_id, receiver_email, req_status, board_name, board_type, post_url, keyword,
-                  start_date, end_date, pay_type, pay_amount, DATE_FORMAT(reg_datetime, '%Y-%m-%d %H:%i:%s') AS reg_datetime
+                  start_date, end_date, email_send_yn, pay_type, pay_amount, DATE_FORMAT(reg_datetime, '%Y-%m-%d %H:%i:%s') AS reg_datetime
              FROM km_request ${whereSql}
              ORDER BY req_id DESC
              LIMIT ${fromRecord}, ${pageRow}`;
@@ -103,7 +103,7 @@ exports.postRequests = async (req, res, next) => {
   let paging = commonLib.getPaging(page, pageRow, pageScale, totalCount, selfUrl, `&iWord=${iWord}`);
 
   query = `SELECT req_id, req_mb_id, receiver_email, req_status, board_name, board_type, post_url, keyword,
-                  start_date, end_date, pay_type, pay_amount, reg_datetime
+                  start_date, end_date, email_send_yn, pay_type, pay_amount, reg_datetime
              FROM km_request ${whereSql}
              ORDER BY req_id DESC
              LIMIT ${fromRecord}, ${pageRow}`;
@@ -144,6 +144,7 @@ exports.addRequest = async (req, res, next) => {
     parsing_type: req.body.parsing_type,
     start_date: req.body.start_date,
     end_date: req.body.end_date,
+    email_send_yn: req.body.email_send_yn,
     pay_type: req.body.pay_type,
     pay_amount: req.body.pay_amount,
     reg_datetime: sequelize.fn("NOW")
@@ -171,7 +172,7 @@ exports.viewRequest = async (req, res, next) => {
   const iWord = req.body.iWord;
 
   let query = `SELECT req_id, req_mb_id, receiver_email, req_status, board_name, board_type, post_url, keyword,
-                      parsing_config, parsing_type, start_date, end_date, pay_type, pay_amount,
+                      parsing_config, parsing_type, start_date, end_date, email_send_yn, pay_type, pay_amount,
                       DATE_FORMAT(reg_datetime, '%Y-%m-%d %H:%i:%s') AS reg_datetime
                  FROM km_request
                 WHERE req_id = ${req_id}`;
@@ -204,6 +205,7 @@ exports.updateRequest = async (req, res, next) => {
     parsing_type: req.body.parsing_type,
     start_date: req.body.start_date,
     end_date: req.body.end_date,
+    email_send_yn: req.body.email_send_yn,
     pay_type: req.body.pay_type,
     pay_amount: req.body.pay_amount
   };

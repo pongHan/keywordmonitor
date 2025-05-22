@@ -188,7 +188,7 @@ async function insertNotificationData(config, post) {
                 detect_datetime,
                 post_title,
                 detect_status
-            ) VALUES (?, ?, ?, ?, ?, NOW(), ?, '1')
+            ) VALUES (?, ?, ?, ?, ?, NOW(), ?,  '1')
         `;
         const insertValues = [
             config.id,
@@ -272,6 +272,23 @@ async function sendEmail({ subject, posts, receiverEmail, receiverName }) {
 }
 
 // Puppeteer로 크롤링
+// Function to extract plain text from <article> element for FMKorea
+function extractContent($, post, board_type) {
+    if (board_type !== 'fmkorea') {
+        return null; // Only process for fmkorea board_type
+    }
+    const article = $(post).find('article').html();
+    if (!article) {
+        log('warning', 'No <article> element found in post');
+        return null;
+    }
+    // Load article content into Cheerio and extract text, removing all tags
+    const $article = cheerio.load(article);
+    const text = $article('article').text().replace(/\s+/g, ' ').trim(); // Normalize whitespace
+    return text || null;
+}
+
+// Main crawling function
 async function crawlWithPuppeteer(config) {
     const { url, keywords, board_type, board_name, parsing_config, receiver_email, receiver_name } = config;
     let allResults = [];
@@ -301,22 +318,35 @@ async function crawlWithPuppeteer(config) {
                     log('info', `title=${titleText} (keyword: ${keyword})`);
                     let link = extractLink($, post, parsing_config.link, modifiedUrl, titleText);
                     let postDate = extractDate($, post, parsing_config.date, board_type, today);
+                    let postContent = extractContent($, post, board_type); // Extract content for FMKorea
                     if (titleText && link) {
-                        titleText = titleText.replace(/\s+/g, ' ');
+                        titleText = titleText.replace(/\s+/g, ' ').trim();
                         const normalizedTitle = titleText.toLowerCase();
                         if (normalizedTitle.includes(keyword)) {
-                            result.push({ title: titleText, link, keyword });
+                            result.push({ title: titleText, link, keyword, content: postContent });
                             if (postDate) {
                                 const diff = today.diff(postDate, 'day');
                                 if (diff <= 2) {
                                     log('info', `📬 작성일 ${postDate.format('YYYY-MM-DD')} => 최근 글이므로 메일 발송 (keyword: ${keyword})`);
-                                    postsToNotify.push({ title: titleText, link, date: postDate.format('YYYY-MM-DD'), keyword });
+                                    postsToNotify.push({ 
+                                        title: titleText, 
+                                        link, 
+                                        date: postDate.format('YYYY-MM-DD'), 
+                                        keyword, 
+                                        content: postContent 
+                                    });
                                 } else {
                                     log('info', `⏳ 작성일 ${postDate.format('YYYY-MM-DD')} => 최근 글 아님 (keyword: ${keyword})`);
                                 }
                             } else {
                                 log('info', `📅 작성일 정보를 찾을 수 없음 (keyword: ${keyword})`);
-                                postsToNotify.push({ title: titleText, link, date: null, keyword });
+                                postsToNotify.push({ 
+                                    title: titleText, 
+                                    link, 
+                                    date: null, 
+                                    keyword, 
+                                    content: postContent 
+                                });
                             }
                         }
                     } else {
@@ -340,7 +370,7 @@ async function crawlWithPuppeteer(config) {
         }
     }
 
-    // 중복 체크 및 삽입
+    // Duplicate check and insertion
     const nonDuplicatePosts = [];
     if (allPostsToNotify.length > 0) {
         for (const post of allPostsToNotify) {
@@ -350,7 +380,7 @@ async function crawlWithPuppeteer(config) {
                 nonDuplicatePosts.push(post);
             }
         }
-        // 중복되지 않은 게시물이 있을 경우에만 이메일 발송
+        // Send email only if there are non-duplicate posts
         if (nonDuplicatePosts.length > 0) {
             // await sendEmail({
             //     subject: `[알림] ${board_name} 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,

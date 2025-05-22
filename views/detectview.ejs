@@ -70,6 +70,7 @@
   }
 
   function captureUrl(detect_id) {
+      toastr.success("스크린샷 생성중입니다. 잠시 기다려주세요.");
     if (!detect_id) {
       toastr.warning("Detect ID가 없습니다.");
       return;
@@ -153,12 +154,12 @@
             </div>
             <div class="form-group">
               <label>Detect Title <span class="text-red">*</span></label>
-              <input type="text" class="form-control" id="detect_title" name="detect_title" value="<%= info.detect_title %>" required />
+              <input type="text" class="form-control" id="post_title" name="post_title" value="<%= info.post_title %>" required />
             </div>
-            <div class="form-group">
+            <!-- <div class="form-group">
               <label>Detect Content <span class="text-red">*</span></label>
-              <textarea class="form-control" id="detect_content" name="detect_content" required><%= info.detect_content %></textarea>
-            </div>
+              <textarea class="form-control" id="post_content" name="post_content" required><%= info.post_content %></textarea>
+            </div> -->
             <div class="form-group">
               <label>Detect Status</label>
               <select class="form-control" id="detect_status" name="detect_status">
@@ -168,16 +169,16 @@
               </select>
             </div>
             <div class="form-group">
+              <label>Detect Datetime</label>
+              <input type="text" readonly class="form-control" id="detect_datetime" name="detect_datetime" value="<%= info.detect_date_formatted %>" />
+            </div>
+            <div class="form-group">
               <label>After Action</label>
               <input type="text" class="form-control" id="after_proc" name="after_proc" value="<%= info.after_proc %>" />
             </div>
             <div class="form-group">
               <label>Action Datetime</label>
               <input type="datetime-local" class="form-control" id="proc_datetime" name="proc_datetime" value="<%= info.proc_datetime %>" />
-            </div>
-            <div class="form-group">
-              <label>Detect Datetime</label>
-              <input type="text" readonly class="form-control" id="detect_datetime" name="detect_datetime" value="<%= info.detect_datetime %>" />
             </div>
 
             <div class="form-group">
