@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Box Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .code-container {
+            margin: 20px 0;
+            position: relative;
+        }
+        .code-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .code-box {
+            background-color: #333; /* Change background to black */
+            color: #f5f5f5; /* Change text color to white */
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            position: relative;
+        }
+        .code-box code {
+            white-space: pre;
+            display: block;
+        }
+        .copy-button {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .copy-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div id="content"></div>
+
+    <script>
+        $(document).ready(function() {
+            // Define the content for each file
+            const codeSnippets = [
+                {
+                    title: 'Service.java',
+                    content: `package com.example.shopping.service;
+
+import com.example.shopping.mapper.Query1Mapper;
+import com.example.shopping.model.Query1;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List`
+                },
+                {
+                    title: 'Mapper.java',
+                    content: `package com.example.shopping.mapper;
+
+import com.example.shopping.model.Query1;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+
+@Mapper
+public interface Query1Mapper {
+    List<Query1> getQuery1(@Param("startDate") String startDate, @Param("endDate") String endDate);
+}`
+                },
+                {
+                    title: 'Model.java',
+                    content: `package com.example.shopping.model;
+
+public class Query1 {
+    private String productCode;
+    private String productName;
+    private int quantityOrdered;
+    private double priceEach;
+
+    public Query1() {
+    }
+
+    public Query1(String productCode, String productName, int quantityOrdered, double priceEach) {
+        this.productCode = productCode;
+        this.productName = productName;
+        this.quantityOrdered = quantityOrdered;
+        this.priceEach = priceEach;
+    }
+
+    public String getProductCode() {
+        return productCode;
+    }
+
+    public void setProductCode(String productCode) {
+        this.productCode = productCode;
+    }
+
+    public String getProductName() {
+        return productName;
+    }
+
+    public void setProductName(String productName) {
+        this.productName = productName;
+    }
+
+    public int getQuantityOrdered() {
+        return quantityOrdered;
+    }
+
+    public void setQuantityOrdered(int quantityOrdered) {
+        this.quantityOrdered = quantityOrdered;
+    }
+
+    public double getPriceEach() {
+        return priceEach;
+    }
+
+    public void setPriceEach(double priceEach) {
+        this.priceEach = priceEach;
+    }
+}`
+                },
+                {
+                    title: 'Controller.java',
+                    content: `package com.example.shopping.controller;
+
+import com.example.shopping.model.Query1;
+import com.example.shopping.service.Query1Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+public class Query1Controller {
+
+    @Autowired
+    private Query1Service query1Service;
+
+    @GetMapping("/query1")
+    public List<Query1> getQuery1(@RequestParam("startDate") String startDate, @RequestParam("endDate") String endDate) {
+        return query1Service.getQuery1(startDate, endDate);
+    }
+}`
+                }
+            ];
+
+            // Function to create a code box
+            function createCodeBox(title, content) {
+                const container = $('<div class="code-container"></div>');
+                const codeTitle = $('<div class="code-title"></div>').text(title);
+                const codeBox = $('<div class="code-box"></div>');
+                const code = $('<code></code>').text(content);
+                const copyButton = $('<button class="copy-button">Copy Code</button>');
+
+                copyButton.on('click', function() {
+                    navigator.clipboard.writeText(content).then(() => {
+                        copyButton.text('Copied!');
+                        setTimeout(() => {
+                            copyButton.text('Copy Code');
+                        }, 2000);
+                    }).catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
+                });
+
+                codeBox.append(copyButton).append(code);
+                container.append(codeTitle).append(codeBox);
+
+                return container;
+            }
+
+            // Append the code boxes to the content div
+            const contentDiv = $('#content');
+            codeSnippets.forEach(snippet => {
+                contentDiv.append(createCodeBox(snippet.title, snippet.content));
+            });
+        });
+    </script>
+</body>
+</html>

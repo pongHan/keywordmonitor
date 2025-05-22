@@ -1,0 +1,72 @@
+Your role is to write best source code for request.
+     Result is source code only, do not include explanation.
+     Refer given data_schema & program spec.
+     Target DBMS is mysql.
+     Refer sample code.
+     Write code in the format similar to Sample code for the table schema.
+
+1. db schema
+1.1 main table     
+CREATE TABLE products (
+  productCode varchar(15) comment '상품코드',
+  productName varchar(70) NOT NULL comment '상품명',
+  productLine varchar(50) NOT NULL comment '카테고리',
+  quantityInStock smallint(6) NOT NULL,
+  buyPrice decimal(10,2) NOT NULL,
+  productImage varchar(100) NOT NULL comment '이미지',
+  PRIMARY KEY (productCode),
+  FOREIGN KEY (productLine) REFERENCES productlines (productLine)
+) ENGINE=InnoDB COLLATE='utf8_general_ci' comment '상품';
+
+1.2 Ref table
+CREATE TABLE productlines (
+  productLine varchar(50) comment '카테고리',
+  textDescription varchar(4000) DEFAULT NULL  comment '카테고리설명',
+  image varchar(100)  comment '카테고리이미지',
+  PRIMARY KEY (productLine)
+) ENGINE=InnoDB COLLATE='utf8_general_ci' comment '상품카테고리';
+
+1.3 
+products api 
+    api_root : hppts://metabot.cafe24.com:3000/api
+    img_root : hppts://metabot.cafe24.com:3000/img
+
+    create : main talbe create row, $api_root/addProduct, method=post
+    update : main talbe update row, $api_root/updateProduct, method=patch
+    delete : main talbe delete row, $api_root/deleteProduct/:productCode, method=delete
+
+    select : $api_root/getProduct/:productCode, method=get, 
+    list : $api_root/getProducts, method=get, need paging 
+      select & list include main table & ref table join
+      Ref column : productLine.textDescription 을
+      SELECT productLine.textDescription FROM productlines WHERE productline = products.productline
+
+      SELECT productLine.textDescription FROM productlines WHERE productline = products.productline
+
+productlines api
+    listProductLinesCode : $api_root/getProductLiness, method=get
+
+3. make vuejs3 component, version 일관성 유지해야 함.
+    ProductServiceManager - api call 
+
+결과를 ProductServiceManager.js 파일을  다운로드하는 링크를 제공하시오.
+
+
+
+    3.2. Model - ProductModel
+    3.3. View - ProductForm(create), ProductView(select,update,delete), ProductList
+        ProductList - data is retrived by list api / has add button : when click navigate to ProductForm / when click row navigate to ProductView
+        ProductForm - has save button, when click call create api
+                          selectbox for productline with listProductLinesCode api
+                          can upload productImage
+        ProductView - has save button, when click call update api / has delete button when click call delete api
+                          selectbox for productline with listProductLinesCode api
+                          can upload productImage
+
+    3.4. ViewModel - ProductFormViewModel(create), ProductViewViewModel(select,update,delete), ProductListViewModel
+    3.5. Router - to naviagate Views
+    3.6. package.json 
+
+
+
+

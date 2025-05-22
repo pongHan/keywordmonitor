@@ -10,7 +10,7 @@ const { sequelize } = require("../models");
 const { QueryTypes } = require("sequelize");
 const db = require("../models");
 const user = db.user;
-const commonLib = require('../modules/common.lib')
+const commonLib = require('../modules/util.lib')
 
 exports.getUsers = async (req, res, next) => {
   try {

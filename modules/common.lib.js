@@ -1,265 +1,488 @@
-const fs = require('fs').promises;
+const { sequelize } = require("../models");
+const db = require("../models");
+const { QueryTypes, BOOLEAN } = require("sequelize");
+const fs = require('fs');
+const fse = require('fs-extra');
 const path = require('path');
-const url = require('url');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-const dayjs = require('dayjs');
+const crypto = require('crypto');
+const axios = require('axios');
 
-// 스텔스 플러그인 등록
-puppeteer.use(StealthPlugin());
-
-// 상수 정의
-const CHECK_INTERVAL = 60 * 1000; // 60초 (ms)
-const RETRY_ATTEMPTS = 3; // 재시도 횟수
-const RETRY_DELAY = 5000; // 재시도 간 딜레이 (ms)
-const SCREENSHOT_DIR = 'screenshots';
-const MAX_SCREENSHOTS = 10; // 유지할 최대 스크린샷 파일 수
-
-const LOG_DIR = 'logs';
-const LOG_RETENTION_MS = 24 * 60 * 60 * 1000; // 24시간
-
-let currentLogFile = null;
-let lastHour = null;
-
-// 로그 파일 생성 및 관리
-const initializeLogFile = async () => {
-    const now = new Date();
-    const year = now.getUTCFullYear();
-    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(now.getUTCDate()).padStart(2, '0');
-    const hour = String(now.getUTCHours() + 9).padStart(2, '0'); // KST (UTC+9)
-    const logFileName = `log${year}${month}${day}${hour}.txt`;
-    const logFilePath = path.join(LOG_DIR, logFileName);
-
-    if (lastHour !== hour) {
-        currentLogFile = logFilePath;
-        lastHour = hour;
-        await fs.mkdir(LOG_DIR, { recursive: true });
-        // 24시간 이전 파일 삭제
-        const files = await fs.readdir(LOG_DIR);
-        const cutoffTime = now.getTime() - LOG_RETENTION_MS;
-        for (const file of files) {
-            const filePath = path.join(LOG_DIR, file);
-            const stats = await fs.stat(filePath);
-            if (stats.mtimeMs < cutoffTime) {
-                await fs.unlink(filePath);
-                console.log(`Deleted old log file: ${filePath}`);
-            }
-        }
-    }
-
-    return currentLogFile;
-};
-
-// 로그 함수
-const log = async (level, message) => {
-    const timestamp = new Date().toISOString();
-    const logLine = `[${timestamp}] ${level.toUpperCase()} - ${message}\n`;
-    console.log(logLine.trim());
-
-    const logFile = await initializeLogFile();
-    await fs.appendFile(logFile, logLine, 'utf8');
-};
+// 대칭키 
+const encKey = "1a6b7c2398e6fd46f5347c29e5f942d3";
+const encIv = "a5f01b82c9d47e93";
 
 
-const sanitizeString = (value) => {
-    if (value === null || value === undefined) return '';
-    if (typeof value !== 'string') return String(value).trim();
-    try {
-        return Buffer.from(value, 'utf8').toString('utf8').trim();
-    } catch (e) {
-        log('warning', `Invalid UTF-8 in string: "${value}"`);
-        return value.replace(/[^\x00-\x7F가-힣\s]/g, '').trim();
-    }
-};
+module.exports.countOccurrence = (string, substring) => {
+    const regex = new RegExp(substring, 'gi');
+    const occurrences = (string.match(regex) || []).length;
+    return occurrences;
+}
 
-// 날짜 파싱
-const parseDate = (dateStr) => {
-    const dateMatch = dateStr.match(/(\d{4}[-/]\d{2}[-/]\d{2})|(\d{2}[-/]\d{2}[-/]\d{2})|(\d{8})|(\d{6})/);
-    if (dateMatch) {
-        let matchedDate = dateMatch[0];
-        let formattedDate;
-        if (matchedDate.match(/\d{4}[-/]\d{2}[-/]\d{2}/)) formattedDate = matchedDate.replace(/\//g, '-');
-        else if (matchedDate.match(/\d{2}[-/]\d{2}[-/]\d{2}/)) formattedDate = `20${matchedDate}`.replace(/\//g, '-');
-        else if (matchedDate.match(/\d{8}/)) formattedDate = `${matchedDate.substring(0,4)}-${matchedDate.substring(4,6)}-${matchedDate.substring(6,8)}`;
-        else if (matchedDate.match(/\d{6}/)) formattedDate = `20${matchedDate.substring(0,2)}-${matchedDate.substring(2,4)}-${matchedDate.substring(4,6)}`;
-        return formattedDate;
-    }
-    return null;
-};
+function substringUtf8(str, startByte, length) {
+    // 문자열을 Buffer 객체로 변환
+    let buffer = Buffer.from(str, 'utf-8');
 
-// FMKorea 상대적 시간 파싱
-const parseRelativeTime = (relativeTime, absoluteTimeComment, today) => {
-    log('debug', `Parsing relative time: ${relativeTime}, Absolute time comment raw: ${absoluteTimeComment}`);
-    const absoluteDateMatch = relativeTime.match(/\d{4}-\d{2}-\d{2}/);
-    if (absoluteDateMatch) {
-        const formattedDate = parseDate(absoluteDateMatch[0]);
-        if (formattedDate) return dayjs(formattedDate);
-    }
-    let absoluteTime = null;
-    if (absoluteTimeComment && typeof absoluteTimeComment === 'string') {
-        const timeMatch = absoluteTimeComment.match(/<!--\s*(\d{2}:\d{2})\s*-->/);
-        if (timeMatch && timeMatch[1]) absoluteTime = timeMatch[1];
-        else log('warning', `Failed to parse absoluteTimeComment: ${absoluteTimeComment}`);
-    } else log('warning', `Invalid absoluteTimeComment type or value: ${absoluteTimeComment}`);
-    let postDate;
-    if (relativeTime.includes('분 전')) postDate = today.subtract(parseInt(relativeTime.match(/\d+/)[0], 10), 'minute');
-    else if (relativeTime.includes('시간 전')) postDate = today.subtract(parseInt(relativeTime.match(/\d+/)[0], 10), 'hour');
-    else if (relativeTime.includes('일 전')) postDate = today.subtract(parseInt(relativeTime.match(/\d+/)[0], 10), 'day');
-    else { log('warning', `Unsupported relative time format: ${relativeTime}`); return null; }
-    if (absoluteTime) {
-        const [hours, minutes] = absoluteTime.split(':').map(num => parseInt(num, 10));
-        postDate = postDate.set('hour', hours).set('minute', minutes);
-        log('debug', `Applied absolute time ${absoluteTime} to postDate: ${postDate.format('YYYY-MM-DD HH:mm')}`);
-    }
-    return postDate;
-};
+    // 시작 바이트에서 지정된 길이만큼 Buffer를 잘라냄
+    let slicedBuffer = buffer.slice(startByte, startByte + length);
 
-// 날짜 추출
-const extractDate = ($, post, dateConfig, boardType, today) => {
-    let postDate = null;
-    if (boardType === 'fmkorea') {
-        const dateElement = $(post).find('span.regdate');
-        if (dateElement.length) {
-            const relativeTime = dateElement.text().trim();
-            let absoluteTimeComment = dateElement.html().match(/<!--\s*(\d{2}:\d{2})\s*-->/);
-            absoluteTimeComment = absoluteTimeComment ? absoluteTimeComment[0] : '';
-            log('debug', `Extracted HTML for date: ${dateElement.html()}`);
-            postDate = parseRelativeTime(relativeTime, absoluteTimeComment, today);
-            log('debug', `Parsed FMKorea date: ${postDate ? postDate.format('YYYY-MM-DD HH:mm') : 'null'}`);
-        } else {
-            const altDateElement = $(post).find('div').text();
-            const altDateMatch = altDateElement.match(/\d{4}-\d{2}-\d{2}/);
-            if (altDateMatch) { const formattedDate = parseDate(altDateMatch[0]); if (formattedDate) { postDate = dayjs(formattedDate); log('debug', `Parsed alternative date: ${postDate.format('YYYY-MM-DD')}`); } }
-        }
-    } else if (dateConfig) {
-        let dateSelector = `${dateConfig.tag}`;
-        if (dateConfig.class) dateSelector += `.${dateConfig.class}`;
-        const dateElement = $(post).find(dateSelector);
-        if (dateElement.length) {
-            const postDateRaw = dateElement.text().trim();
-            log('debug', `Processing date: ${postDateRaw}`);
-            const formattedDate = parseDate(postDateRaw);
-            if (formattedDate) postDate = dayjs(formattedDate);
-        }
-    }
-    return postDate;
-};
+    // 잘라낸 Buffer를 다시 문자열로 변환
+    return slicedBuffer.toString('utf-8');
+}
 
-// 링크 추출
-const extractLink = ($, post, linkConfig, boardUrl, titleText) => {
-    let link = null;
-    if (linkConfig === 'date_based') {
-        const dateConfig = linkConfig.date || {};
-        let dateSelector = `${dateConfig.tag}`;
-        if (dateConfig.class) dateSelector += `.${dateConfig.class}`;
-        if (dateConfig.index !== undefined) {
-            const dateElement = $(post).find('td').eq(dateConfig.index);
-            if (dateElement.length) { const postDateRaw = dateElement.text().trim(); log('debug', `Raw date text: ${postDateRaw}`); link = `${boardUrl}#${postDateRaw.replace(/\//g, '-')}`; }
-        } else if (dateConfig.color) {
-            dateSelector += `[color="${dateConfig.color}"]`;
-            const dateElement = $(post).find(dateSelector);
-            if (dateElement.length) { const postDateRaw = dateElement.text().trim(); log('debug', `Raw date text: ${postDateRaw}`); link = `${boardUrl}#${postDateRaw.replace(/\//g, '-')}`; }
-        }
-    } else {
-        let linkSelector = `${linkConfig.tag}`;
-        if (linkConfig.href) { linkSelector = `${linkConfig.tag}[href]`; const linkElement = $(post).find(linkSelector).first(); if (linkElement.length) link = url.resolve(boardUrl, linkElement.attr('href')); }
-        if (!link && titleText) link = `${boardUrl}#${titleText.slice(0, 10)}`;
-    }
-    return link ? sanitizeString(link) : null;
-};
 
-// 제목 추출
-const extractTitle = ($, post, titleConfig, boardType) => {
-    let titleText = null, titleElement = null;
-    if (titleConfig.search_all) {
-        const tds = $(post).find('td');
-        tds.each((i, td) => { const text = $(td).text().trim(); if (text && text.length > 5) { titleText = text; titleElement = $(td); return false; } });
-    } else {
-        let titleSelector = `${titleConfig.tag}`;
-        if (titleConfig.class) { titleSelector += `.${titleConfig.class}`; titleElement = $(post).find(titleSelector); }
-        if (boardType === 'pgr21_humor' || boardType === 'fmkorea') { titleElement = titleElement.find('a'); titleText = titleElement.text().trim(); }
-        else if (titleElement) titleText = titleElement.text().trim();
-    }
-    return titleText ? sanitizeString(titleText) : null;
-};
-
-// 컨테이너 셀렉터 생성
-const generateSelector = (containerConfig) => {
-    let selector = containerConfig.tag;
-    if (containerConfig.id) selector += `#${containerConfig.id}`;
-    else if (containerConfig.class) selector += `.${containerConfig.class}`;
-    else if (containerConfig.style) selector = `${containerConfig.tag}[style*="${containerConfig.style}"]`;
-    return selector;
-};
-
-// 화면 캡처
-const captureScreenshot = async (url, outputPath) => {
-    const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+module.exports.capitalizeString = (param) => {
+    return param.replace(/^(.)(.*)$/, function (_, firstChar, restOfString) {
+        return firstChar.toUpperCase() + restOfString;
     });
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 1000 });
+}
 
-    try {
-        await page.goto(url, { waitUntil: 'load', timeout: 60000 });
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        await page.screenshot({ path: outputPath, fullPage: true });
-        log('info', `Screenshot saved: ${outputPath}`);
-        await cleanupScreenshots();
-    } catch (e) {
-        log('error', `Puppeteer navigation error: ${e.message}`);
-    } finally {
-        await browser.close();
-    }
-    return outputPath;
-};
+module.exports.camelizeString = (param) => {
+    return param.replace(/_([a-z])/g, function (match, letter) {
+        return letter.toUpperCase();
+    });
+}
 
-// 스크린샷 디렉토리 정리
-const cleanupScreenshots = async () => {
-    try {
-        const files = await fs.readdir(SCREENSHOT_DIR);
-        if (files.length <= MAX_SCREENSHOTS) {
-            log('debug', `Screenshot count (${files.length}) is within limit (${MAX_SCREENSHOTS}). No cleanup needed.`);
+module.exports.camelizeCapString = (param) => {
+    return this.capitalizeString(this.camelizeString(param));
+}
+
+module.exports.readPart = (param) => {
+    console.log("readPart..");
+    var str = "";
+    const templateFile = './public/template/parts.js';
+    fs.readFile(templateFile, 'utf8', (err, content) => {
+        if (err) {
+            console.error('Error reading file:', err);
             return;
         }
 
-        const fileStats = await Promise.all(
-            files.map(async (file) => {
-                const filePath = path.join(SCREENSHOT_DIR, file);
-                const stats = await fs.stat(filePath);
-                return { filePath, ctime: stats.ctime };
-            })
-        );
-
-        fileStats.sort((a, b) => b.ctime - a.ctime);
-
-        const filesToDelete = fileStats.slice(MAX_SCREENSHOTS);
-        for (const { filePath } of filesToDelete) {
-            await fs.unlink(filePath);
-            log('info', `Deleted old screenshot: ${filePath}`);
+        var startTag = "<" + param + ">";
+        var endTag = "</" + param + ">";
+        var startPos = content.indexOf(startTag, 0) + startTag.length;
+        var endPos = content.indexOf(endTag, startPos);
+        if (startPos > 0 && endPos > startPos) {
+            str = content.substring(startPos, endPos);
+            console.log(str);
+            return str;
         }
-        log('info', `Cleaned up screenshots. Kept ${MAX_SCREENSHOTS}, deleted ${filesToDelete.length}.`);
-    } catch (error) {
-        log('error', `Error cleaning up screenshots: ${error.message}`);
-    }
-};
+    });
+    return str;
+}
 
-module.exports = {
-    log,
-    sanitizeString,
-    parseDate,
-    parseRelativeTime,
-    extractDate,
-    extractLink,
-    extractTitle,
-    generateSelector,
-    captureScreenshot,
-    cleanupScreenshots,
-    CHECK_INTERVAL,
-    RETRY_ATTEMPTS,
-    RETRY_DELAY,
-    SCREENSHOT_DIR,
-    MAX_SCREENSHOTS
-};
+
+
+module.exports.isEmptyObj = (param) => {
+    return param.constructor === Object && Object.keys(param).length == 0;
+}
+
+module.exports.getRowByIdx = async (ptab = "", pid = "") => {
+    let query = `SELECT * FROM ${ptab} WHERE id = '${pid}'`;
+    console.log(query);
+    let row = await sequelize.query(query, { type: QueryTypes.SELECT, raw: true }).catch(err => { console.error(err); });
+    row.map(function (elem) {
+        for (const [key, value] of Object.entries(elem)) {
+            if (typeof (value) == "object" && value !== undefined) {
+                elem[key] = value.toString('utf8');
+            }
+        }
+    });
+    return row;
+}
+
+
+module.exports.getCodeList = async (p_cd_tp = "") => {
+    const list = await db.code.findAll({
+        attributes: ["cd_cd", "cd_nm"],
+        where: {
+            cd_tp: p_cd_tp,
+        },
+        raw: true
+    })
+    list.map(function (elem) {
+        for (const [key, value] of Object.entries(elem)) {
+            if (typeof (value) == "object" && value !== undefined) {
+                elem[key] = value.toString('utf8');
+            }
+        }
+    });
+    return list;
+}
+
+
+module.exports.getCodeName = async (cd_tp = "", cd_cd = "") => {
+
+    let sql = `SELECT cd_nm FROM tb_code WHERE cd_tp = '${cd_tp}' or cd_cd = '${cd_cd}'`;
+    const [data] = await sequelize.query(sql);
+    user.map(function (elem) {
+        // (key, value) 형식으로 탐색
+        for (const [key, value] of Object.entries(elem)) {
+            // type 값이 object일 경우는 보통 Buffer이므로 변환
+            if (typeof (value) == "object" && value !== undefined) {
+                elem[key] = value.toString('utf8');
+            }
+        }
+    });
+
+    return data;
+}
+
+module.exports.getMember = async (id = "", email = "") => {
+
+    // 회원정보 가져오기
+    let sql = `SELECT * FROM tb_member WHERE mb_id = '${id}' `;
+    const [user] = await sequelize.query(sql);
+    user.map(function (elem) {
+        // (key, value) 형식으로 탐색
+        for (const [key, value] of Object.entries(elem)) {
+            // type 값이 object일 경우는 보통 Buffer이므로 변환
+            if (typeof (value) == "object" && value !== undefined) {
+                elem[key] = value.toString('utf8');
+            }
+        }
+    });
+
+    return user;
+}
+
+module.exports.getPaging = (page, pageRow, pageScale, totalCount, selfUrl, iParams) => {
+
+    // 4-1. 전체 페이지 계산
+    totalPage = Math.ceil(totalCount / pageRow);
+    if (totalPage > 1) {
+
+        // 4-2. 페이징을 출력할 변수 초기화
+        pagingStr = "";
+
+        pagingStr += "<nav>";
+        pagingStr += "<ul class='pagination'>";
+
+        // 4-3. 처음 페이지 링크 만들기
+        if (page > 1) {
+            pagingStr += `<li class='page-item'><a class='page-link' href='${selfUrl}?iPage=1${iParams}'>처음</a></li>`;
+        }
+
+        // 4-4. 페이징에 표시될 시작 페이지 구하기
+        startPage = ((Math.ceil(page / pageScale) - 1) * pageScale) + 1;
+
+        // 4-5. 페이징에 표시될 마지막 페이지 구하기
+        endPage = startPage + pageScale - 1;
+        if (endPage >= totalPage) endPage = totalPage;
+
+        // 4-6. 이전 페이징 영역으로 가는 링크 만들기
+        if (startPage > 1) {
+            pagingStr += `<li class='page-item'><a class='page-link' href='${selfUrl}?iPage=${(startPage - 1)}${iParams}'>이전</a></li>`;
+        }
+
+        // 4-7. 페이지들 출력 부분 링크 만들기
+        if (totalPage > 1) {
+            for (i = startPage; i <= endPage; i++) {
+                // 현재 페이지가 아니면 링크 걸기
+                if (page != i) {
+                    pagingStr += `<li class='page-item'><a class='page-link' href='${selfUrl}?iPage=${i}${iParams}'><span>${i}</span></a></li>`;
+                    // 현재페이지면 굵게 표시하기
+                } else {
+                    pagingStr += `<li class='page-item active' aria-current='page'><a class='page-link' href='#'>${i}</a></li>`;
+                }
+            }
+        }
+
+        // 4-8. 다음 페이징 영역으로 가는 링크 만들기
+        if (totalPage > endPage) {
+            pagingStr += `<li class='page-item'><a class='page-link' href='${selfUrl}?iPage=${(endPage + 1)}${iParams}'>다음</a></li>`;
+        }
+
+        // 4-9. 마지막 페이지 링크 만들기
+        if (page < totalPage) {
+            pagingStr += `<li class='page-item'><a class='page-link' href='${selfUrl}?iPage=${totalPage}${iParams}'>맨끝</a></li>`;
+        }
+
+        pagingStr += "</ul>";
+        pagingStr += "</nav>";
+
+        return pagingStr;
+
+    } else {
+        return "";
+    }
+}
+
+module.exports.getToday = () => {
+    const today = new Date();
+    const year = today.getFullYear(); const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const day = String(today.getDate()).padStart(2, '0');
+    const currentDate = `${year}/${month}/${day}`;
+    return currentDate;
+}
+
+module.exports.getDatetime = () => {
+    const now = new Date();
+    const formattedDate = `${now.getFullYear()}${pad(now.getMonth() + 1, 2)}${pad(now.getDate(), 2)}${pad(now.getHours(), 2)}${pad(now.getMinutes(), 2)}${pad(now.getSeconds(), 2)}${pad(now.getMilliseconds(), 3)}`;
+    return formattedDate;
+}
+
+function pad(number, length) {
+    const str = String(number);
+    return "0".repeat(length - str.length) + str;
+}
+
+module.exports.isValidAccess = async (param) => {
+    // DB에 등록된 apikey & 유효기간 확인
+    // 개발 단계에서는 비활성화 상태로 유지
+    /*if (param === undefined) return false;
+
+    let result = false;
+    let todayDate = new Date();
+    const dbData = await apiKey.findAll();
+
+    dbData.forEach((data) => {
+        if (param == data.api_key) {
+            if (data.expire_datetime === null) {
+                result = true;
+            } else if (todayDate < data.expire_datetime) {
+                result = true;
+            }
+        }
+    });
+
+    return result;*/
+    return true;
+}
+
+module.exports.genUUID = (type) => {
+    let myuuid = v4();
+    return type + myuuid;
+}
+
+module.exports.isPkey = (col, datamodelJson) => {
+    var flag = false;
+    for (var k = 0; k < datamodelJson.length && k < 8; k++) {
+        if (datamodelJson[k].hasOwnProperty("keytype") && (datamodelJson[k].keytype.toUpperCase() === 'PRI' || datamodelJson[k].keytype.toUpperCase() === 'PK') && col === datamodelJson[k].column) {
+            flag = true;
+            break;
+        }
+    }
+    return flag;
+}
+
+module.exports.getColType = (col, datamodelJson) => {
+    var result = "";
+    for (var k = 0; k < datamodelJson.length && k < 8; k++) {
+        if (col === datamodelJson[k].column && datamodelJson[k].hasOwnProperty("coltype")) {
+            result = datamodelJson[k].coltype;
+            break;
+        }
+    }
+    return result;
+}
+
+module.exports.isAutoIncrement = (col, datamodelJson) => {
+    var flag = false;
+    for (var k = 0; k < datamodelJson.length && k < 8; k++) {
+        if (datamodelJson[k].hasOwnProperty("auto_increment") && datamodelJson[k].auto_increment === "Y" && col === datamodelJson[k].column) {
+            flag = true;
+            break;
+        }
+    }
+    return flag;
+}
+
+module.exports.getDirectoryPath = (filePath) => {
+    const lastIndex = filePath.lastIndexOf('/');
+    if (lastIndex !== -1) {
+        return filePath.substring(0, lastIndex);
+    }
+    return filePath;
+}
+
+module.exports.isJSON = (value) => {
+    try {
+        JSON.parse(value);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+module.exports.getDatamodelColumn = (dataModelColumns, params) => {
+    var json = {};
+    for (i = 0; i < dataModelColumns.length; i++) {
+        if (dataModelColumns[i].column == params) {
+            json = dataModelColumns[i];
+            break;
+        }
+    }
+    return json;
+}
+
+
+module.exports.encryptFile = (param) => {
+
+    // 대상 파일의 경로
+    const filePath = param;
+    const filePath2 = param.replace("template", "encrypt");
+    const folderPath = path.dirname(filePath2);
+    console.log("filePath=" + filePath + " => " + filePath2);
+
+    // Create the folder recursively
+    fs.mkdirSync(folderPath, { recursive: true }, (err) => {
+        if (err) {
+            console.error('Error creating folder:', err);
+            return;
+        }
+        console.log('Folder created successfully!');
+    });
+
+    // 파일 이름을 암호화
+    //const encryptedFileName = crypto.createHash('sha256').update(filePath).digest('hex');
+
+    // 파일 내용을 읽기
+    const fileContent = fs.readFileSync(filePath);
+
+    // 파일 내용을 암호화
+    const cipher = crypto.createCipheriv('aes-256-cbc', encKey, encIv);
+    const encryptedContent = Buffer.concat([cipher.update(fileContent), cipher.final()]);
+
+    // 암호화된 파일 이름과 암호화된 파일 내용을 저장
+    //fse.writeFileSync(filePath2, encryptedContent);
+    fse.writeFile(filePath2, encryptedContent, 'utf8', (err) => {
+        if (err) {
+            console.error(err);
+            return;
+        }
+    });
+
+    console.log('File encrypted ');
+}
+
+module.exports.decryptFile = (param) => {
+
+    // 대상 파일의 경로
+    const filePath = param;
+    const filePath2 = param.replace("encrypt", "decrypt");
+    const folderPath = path.dirname(filePath2);
+
+    // Create the folder recursively
+    fs.mkdirSync(folderPath, { recursive: true }, (err) => {
+        if (err) {
+            console.error('Error creating folder:', err);
+            return;
+        }
+        console.log('Folder created successfully!');
+    });
+
+    // 파일 이름을 암호화
+    //const encryptedFileName = crypto.createHash('sha256').update(filePath).digest('hex');
+
+    // 암호화된 파일 내용 읽기
+    const encryptedContent = fs.readFileSync(filePath);
+
+    // 복호화
+    const decipher = crypto.createDecipheriv('aes-256-cbc', encKey, encIv);
+    const decryptedContent = Buffer.concat([decipher.update(encryptedContent), decipher.final()]);
+
+    fse.writeFileSync(filePath2, decryptedContent);
+
+    console.log('File decrypted ');
+}
+
+module.exports.decryptContent = (filePath) => {
+
+    console.log("decryptContent" + filePath);
+    const encryptedContent = fs.readFileSync(filePath);
+    // 복호화
+    const decipher = crypto.createDecipheriv('aes-256-cbc', encKey, encIv);
+    const decryptedContent = Buffer.concat([decipher.update(encryptedContent), decipher.final()]);
+    return decryptedContent;
+}
+
+module.exports.getAllFilePaths = (folderPath) => {
+    let filePaths = [];
+
+    function traverseDirectory(currentPath) {
+        const files = fs.readdirSync(currentPath);
+
+        files.forEach((file) => {
+            const filePath = path.join(currentPath, file);
+            const stat = fs.statSync(filePath);
+
+            if (stat.isDirectory()) {
+                traverseDirectory(filePath); // Recursively traverse subdirectories
+            } else {
+                filePaths.push(filePath); // Add file path to the array
+            }
+        });
+    }
+
+    traverseDirectory(folderPath);
+    return filePaths;
+}
+
+
+module.exports.generateCodeSnippets = (input) => {
+
+    const snippets = [];
+    const regex = /(\w+)\n```java\n([\s\S]*?)```/g;
+    let match;
+    while ((match = regex.exec(input)) !== null) {
+        const title = `${match[1]}.java`;
+        const content = match[2];
+        snippets.push({ title, content });
+    }
+    return snippets;
+}
+
+module.exports.generateSelectSQL = (json, targetTable, useColumnComment = true) => {
+    
+    console.log("generateSelectSQL..");
+    const columnInfo = json.columns;
+    const tableAliases = new Map();
+    const existingAliases = new Set();
+
+    // Helper to generate table aliases
+    function generateTableAlias(tableName, existingAliases) {
+        let alias = tableName.substring(0, 2).toLowerCase();
+        let i = 1;
+        while (existingAliases.has(alias)) {
+            alias = `${tableName.substring(0, 2).toLowerCase()}${i}`;
+            i++;
+        }
+        existingAliases.add(alias);
+        return alias;
+    }
+
+    // Assign an alias for the target table
+    const targetTableAlias = generateTableAlias(targetTable, existingAliases);
+    tableAliases.set(targetTable, targetTableAlias);
+
+    // Generate aliases for all tables and set up selection clause
+    let selectClause = [];
+    columnInfo.filter(column => column.table_id === targetTable).forEach(column => {
+        const columnAlias = useColumnComment ? column.column_comment || column.column : column.column;
+        if (column.datatype === 'DT') {  // Check if datatype is Date
+            selectClause.push(`\tDATE_FORMAT(${targetTableAlias}.${column.column}, '%Y-%m-%d') AS '${columnAlias}'`);
+        } else {
+            selectClause.push(`\t${targetTableAlias}.${column.column} AS '${columnAlias}'`);
+        }
+    });
+
+    // Prepare join clauses
+    let joinClauses = '';
+    let codeAliasIndex = 1;
+
+    columnInfo.forEach(column => {
+        if (column.ref && column.ref.includes('from tb_code')) {
+            const refMatch = /where cd_tp = '([^']+)'/.exec(column.ref);
+            if (refMatch) {
+                const codeType = refMatch[1];
+                const codeAlias = `code${codeAliasIndex}`;
+                joinClauses += ` \nLEFT JOIN tb_code ${codeAlias} ON ${codeAlias}.cd_cd=${targetTableAlias}.${column.column} AND ${codeAlias}.cd_tp='${codeType}'`;
+                selectClause.push(`\t${codeAlias}.cd_nm AS '${column.column}_name'`);
+                codeAliasIndex++;
+            }
+        }
+    });
+
+    // Building the full SQL query
+    const sqlQuery = `SELECT\n${selectClause.join(',\n')}\nFROM ${targetTable} ${targetTableAlias}${joinClauses}`;
+    return sqlQuery;
+}

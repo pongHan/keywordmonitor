@@ -1,0 +1,188 @@
+<!DOCTYdivE html>
+    <html>
+
+    <head>
+        <meta charset='utf-8'>
+        <meta httdiv-equiv='X-UA-Comdivatible' content='IE=edge'>
+        <title>metaQuery Help</title>
+        <meta name='viewdivort' content='width=device-width, initial-scale=1'>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" int
+            crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/js/bootstrap.bundle.min.js"
+            crossorigin="anonymous"></script>
+
+    </head>
+
+    <body>
+
+        <div class="container">
+            <div class="card border border-primary" style="margin-top:30px;">
+                <div class="card-header">
+                    <h4 class="text-center">자연어 Query Guide</h4>
+                </div>
+                <br>
+                <h4 class="text-center">자연어(한글)로 요구사항을 입력하면 AI가 SQL Query를 만들어줍니다.<br>
+                  </h4>
+                <div class="card-body">
+
+                    <br>
+                    <div style="padding-left:50px">
+                        <h4>1. 샘플DB 스키마</h4>
+
+                        <div>
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">TABLE NAME</th>
+                                        <th scope="col">TABLE COMMENT</th>
+                                        <th scope="col">ORDINAL POSITION</th>
+                                        <th scope="col">column</th>
+                                        <th scope="col">column comment</th>
+                                        <th scope="col">Type</th>
+                                        <th scope="col">Data length</th>
+                                        <th scope="col">Key</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+<tr><td>customers</td><td>고객</td><td>1</td><td>customerNumber</td><td>고객번호</td><td>int</td><td>10</td><td>PRI</td></tr>
+<tr><td>customers</td><td>고객</td><td>2</td><td>customerName</td><td>고객명</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>3</td><td>contactLastName</td><td>고객성명(뒤)</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>4</td><td>contactFirstName</td><td>고객성명(앞)</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>5</td><td>phone</td><td>고객전화번호</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>6</td><td>addressLine1</td><td>고객주소1</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>7</td><td>addressLine2</td><td>고객주소2</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>8</td><td>city</td><td>도시</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>9</td><td>state</td><td>지역</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>10</td><td>postalCode</td><td>우편번호</td><td>varchar</td><td>15</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>11</td><td>country</td><td>국가</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>customers</td><td>고객</td><td>12</td><td>salesRepEmployeeNumber</td><td>영업사원번호</td><td>int</td><td>10</td><td>MUL</td></tr>
+<tr><td>customers</td><td>고객</td><td>13</td><td>creditLimit</td><td>신용한도</td><td>decimal</td><td>10</td><td></td></tr>
+<tr><td>employees</td><td>직원</td><td>1</td><td>employeeNumber</td><td>직원번호</td><td>int</td><td>10</td><td>PRI</td></tr>
+<tr><td>employees</td><td>직원</td><td>2</td><td>lastName</td><td>성명(뒤)</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>employees</td><td>직원</td><td>3</td><td>firstName</td><td>성명(앞)</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>employees</td><td>직원</td><td>4</td><td>extension</td><td>내선번호</td><td>varchar</td><td>10</td><td></td></tr>
+<tr><td>employees</td><td>직원</td><td>5</td><td>email</td><td>이메일</td><td>varchar</td><td>100</td><td></td></tr>
+<tr><td>employees</td><td>직원</td><td>6</td><td>officeCode</td><td>회사코드</td><td>varchar</td><td>10</td><td>MUL</td></tr>
+<tr><td>employees</td><td>직원</td><td>7</td><td>reportsTo</td><td>상사</td><td>int</td><td>10</td><td>MUL</td></tr>
+<tr><td>employees</td><td>직원</td><td>8</td><td>jobTitle</td><td>호칭</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>offices</td><td>회사</td><td>1</td><td>officeCode</td><td>회사코드</td><td>varchar</td><td>10</td><td>PRI</td></tr>
+<tr><td>offices</td><td>회사</td><td>2</td><td>city</td><td>도시</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>offices</td><td>회사</td><td>3</td><td>phone</td><td>전화번호</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>offices</td><td>회사</td><td>4</td><td>addressLine1</td><td>주소1</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>offices</td><td>회사</td><td>5</td><td>addressLine2</td><td>주소2</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>offices</td><td>회사</td><td>6</td><td>state</td><td>지역/주/시도</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>offices</td><td>회사</td><td>7</td><td>country</td><td>국가</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>offices</td><td>회사</td><td>8</td><td>postalCode</td><td>우편번호</td><td>varchar</td><td>15</td><td></td></tr>
+<tr><td>offices</td><td>회사</td><td>9</td><td>territory</td><td>영역</td><td>varchar</td><td>10</td><td></td></tr>
+<tr><td>orderdetails</td><td>주문품목</td><td>1</td><td>orderNumber</td><td>주문번호</td><td>int</td><td>10</td><td>PRI</td></tr>
+<tr><td>orderdetails</td><td>주문품목</td><td>2</td><td>productCode</td><td>상품코드</td><td>varchar</td><td>15</td><td>PRI</td></tr>
+<tr><td>orderdetails</td><td>주문품목</td><td>3</td><td>quantityOrdered</td><td>수량</td><td>int</td><td>10</td><td></td></tr>
+<tr><td>orderdetails</td><td>주문품목</td><td>4</td><td>priceEach</td><td>단가</td><td>decimal</td><td>10</td><td></td></tr>
+<tr><td>orderdetails</td><td>주문품목</td><td>5</td><td>orderLineNumber</td><td>순번</td><td>smallint</td><td></td><td></td></tr>
+<tr><td>orders</td><td>주문</td><td>1</td><td>orderNumber</td><td>주문번호</td><td>int</td><td>10</td><td>PRI</td></tr>
+<tr><td>orders</td><td>주문</td><td>2</td><td>orderDate</td><td>주문일자</td><td>date</td><td></td><td></td></tr>
+<tr><td>orders</td><td>주문</td><td>3</td><td>requiredDate</td><td>요청일자</td><td>date</td><td></td><td></td></tr>
+<tr><td>orders</td><td>주문</td><td>4</td><td>shippedDate</td><td>배송일자</td><td>date</td><td></td><td></td></tr>
+<tr><td>orders</td><td>주문</td><td>5</td><td>status</td><td>주문상태</td><td>varchar</td><td>15</td><td></td></tr>
+<tr><td>orders</td><td>주문</td><td>6</td><td>comments</td><td>주문메모</td><td>text</td><td>65535</td><td></td></tr>
+<tr><td>orders</td><td>주문</td><td>7</td><td>customerNumber</td><td>고객번호</td><td>int</td><td>10</td><td>MUL</td></tr>
+<tr><td>payments</td><td>결제</td><td>1</td><td>customerNumber</td><td>고객번호</td><td>int</td><td>10</td><td>PRI</td></tr>
+<tr><td>payments</td><td>결제</td><td>2</td><td>checkNumber</td><td>결제번호</td><td>varchar</td><td>50</td><td>PRI</td></tr>
+<tr><td>payments</td><td>결제</td><td>3</td><td>paymentDate</td><td>결제일자</td><td>date</td><td></td><td></td></tr>
+<tr><td>payments</td><td>결제</td><td>4</td><td>amount</td><td>결제금액</td><td>decimal</td><td>10</td><td></td></tr>
+<tr><td>productlines</td><td>상품카테고리</td><td>1</td><td>productLine</td><td>카테고리</td><td>varchar</td><td>50</td><td>PRI</td></tr>
+<tr><td>productlines</td><td>상품카테고리</td><td>2</td><td>textDescription</td><td>카테고리설명</td><td>varchar</td><td>4000</td><td></td></tr>
+<tr><td>productlines</td><td>상품카테고리</td><td>3</td><td>htmlDescription</td><td>카테고리설명(html)</td><td>mediumtext</td><td></td><td></td></tr>
+<tr><td>productlines</td><td>상품카테고리</td><td>4</td><td>image</td><td>카테고리이미지</td><td>mediumblob</td><td></td><td></td></tr>
+<tr><td>products</td><td>상품</td><td>1</td><td>productCode</td><td>상품코드</td><td>varchar</td><td>15</td><td>PRI</td></tr>
+<tr><td>products</td><td>상품</td><td>2</td><td>productName</td><td>상품명</td><td>varchar</td><td>70</td><td></td></tr>
+<tr><td>products</td><td>상품</td><td>3</td><td>productLine</td><td>카테고리</td><td>varchar</td><td>50</td><td>MUL</td></tr>
+<tr><td>products</td><td>상품</td><td>4</td><td>productScale</td><td>사이즈</td><td>varchar</td><td>10</td><td></td></tr>
+<tr><td>products</td><td>상품</td><td>5</td><td>productVendor</td><td>제조사</td><td>varchar</td><td>50</td><td></td></tr>
+<tr><td>products</td><td>상품</td><td>6</td><td>productDescription</td><td>상품설명</td><td>text</td><td>65535</td><td></td></tr>
+<tr><td>products</td><td>상품</td><td>7</td><td>quantityInStock</td><td></td><td>smallint</td><td></td><td></td></tr>
+<tr><td>products</td><td>상품</td><td>8</td><td>buyPrice</td><td></td><td>decimal</td><td>10</td><td></td></tr>
+<tr><td>products</td><td>상품</td><td>9</td><td>MSRP</td><td></td><td>decimal</td><td>10</td><td></td></tr>
+
+                                </tbody>
+                            </table>                        </div>
+                        <br>
+
+                        <h4>2. 자연어 Query 입력 순서</h4>
+                        <h5>- 간략한 방법</h5>
+                        <p>요구사항을 입력합니다.</p>
+                        <h5>- 정확한 Query를 위한 입력</h5>
+                        <p>정확한 답변을 얻으려면 세부적으로 지정해줘야 합니다.</p>
+                        <div style="margin-left:30px;">
+                            <div>1) 제목을 입력합니다. </div>
+                            <div>2) 사용할 테이블을 정합니다. </div>
+                            <div>3) 항목을 입력합니다.</div>
+                            <div>4) 조건을 입력합니다.</div>
+                            <div>5) 출력 순서를 입력합니다.</div>
+                        </div>
+                        <br>
+
+                        <h4>3. 샘플 Query 내용</h4>
+                        <div style="margin-left:30px;">
+                            <간단한 요구사항><br>
+                            2024년에 많이 팔린 상품순서는? 상품코드, 상품명, 판매수량, 판매금액으로 보여주세요..<br><br>
+                            <상세한 요구사항><br>
+                            - 테이블 : 상품, 주문<br>
+                            - 항목 : 상품코드, 상품명, 판매수량, 판매금액<br>
+                            - 조건 : 주문일자 = 2024년<br>
+                            - 순서 : 판매수량
+                        </div>
+                        <br>
+
+                        <h4>4. 생성된 SQL Query 샘플</h4>
+                        <div style="margin-left:30px;">
+                            SELECT<br>
+                            &nbsp;&nbsp;&nbsp;p.productCode,<br>
+                            &nbsp;&nbsp;&nbsp;p.productName,<br>
+                            &nbsp;&nbsp;&nbsp;SUM(od.quantityOrdered) AS soldQuantity,<br>
+                            &nbsp;&nbsp;&nbsp;SUM(od.quantityOrdered * od.priceEach) AS soldAmount<br>
+                          FROM shopping.orderdetails AS od<br>
+                          JOIN shopping.products AS p<br>
+                            ON od.productCode = p.productCode<br>
+                          JOIN shopping.orders AS o<br>
+                            ON od.orderNumber = o.orderNumber<br>
+                          WHERE<br>
+                          &nbsp;&nbsp;&nbsp;YEAR(o.orderDate) = 2024<br>
+                          GROUP BY<br>
+                          &nbsp;&nbsp;&nbsp;p.productCode,<br>
+                          &nbsp;&nbsp;&nbsp;p.productName<br>
+                          ORDER BY<br>
+                          &nbsp;&nbsp;&nbsp;soldQuantity DESC<br>
+                          LIMIT 0, 1000;<br>
+                        </div>
+                        <br>
+
+                        <h4>5. Query 실행</h4>
+                        <div style="margin-left:30px;">
+                            - Query를 실행합니다.<br>
+                            - 결과데이터를 조회합니다.<br>
+                            - 결과데이터를 엑셀로 저장합니다.
+                        </div>
+                        <br>
+
+                        <h4>6. 샘플 요구사항 </h4>
+                        <div class="modal-body text-left">
+                            <ul id="listContainer">
+                              1. 2024년에 많이 팔린 상품순서는? 상품코드, 상품명, 판매수량, 판매금액으로 보여주세요.<br>
+                              2. 상품카테고리별 매출현황을 보여주세요.(매출수량, 매출금액)<br>
+                              3. 미국(USA)고객에 대한 판매목록을 보여주세요. 날짜는 yyyy-mm-dd 포맷으로 해주세요.<br>
+                              4. San Francisco 의 조직 구조(보고자)를 보여주세요.<br>
+                              5. 국가+상품별 매출수량을 보여주세요.<br>
+                              6. 국가별 고객수를 보여주세요.<br>
+                              7. 월별 매출현황을 보여주세요.<br>
+                            </ul>
+                          </div>
+                    </div>
+                </div>
+            </div>
+            <br><br>
+        </div>
+
+    </body>
+
+    </html>
