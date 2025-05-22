@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const kmDetectDataController = require('../controllers/kmDetectDataController');
+const kmDetectDataController = require('../controllers/km_detect.controller');
 
 // CRUD Routes
 router.post('/', kmDetectDataController.create);

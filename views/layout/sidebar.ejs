@@ -42,55 +42,19 @@
           <li class="bg-success"></li>
           <li class="treeview active">
               <a href="#">
-                  <i class="fa fa-edit"></i> <span>AiCode</span>
+                  <i class="fa fa-edit"></i> <span>Monitor</span>
                   <span class="pull-right-container">
                       <i class="fa fa-angle-left pull-right"></i>
                   </span>
               </a>
               <ul class="treeview-menu">
-                  <li><a href="getAicode"><i class="fa fa-circle-o"></i> Playground</a></li>
-                  <li><a href="getProjects"><i class="fa fa-circle-o"></i> Project</a></li>
-                  <li><a href="manageAppmodel"><i class="fa fa-circle-o"></i> App Model</a></li>
-                  <li><a href="exploreModule"><i class="fa fa-circle-o"></i> Framework Generator</a></li>
+                  <li><a href="getAicode"><i class="fa fa-circle-o"></i> Request</a></li>
+                  <li><a href="getProjects"><i class="fa fa-circle-o"></i> Detect</a></li>
+                  <li><a href="manageAppmodel"><i class="fa fa-circle-o"></i> Site</a></li>
               </ul>
           </li>
       </ul>
 
-      <ul class="sidebar-menu" data-widget="tree">
-          <li class="treeview active">
-              <a href="#">
-                  <i class="fa fa-edit"></i> <span>AiQuery</span>
-                  <span class="pull-right-container">
-                      <i class="fa fa-angle-left pull-right"></i>
-                  </span>
-              </a>
-              <ul class="treeview-menu">
-                  <li><a href="getAiQuery"><i class="fa fa-circle-o"></i> Playground</a></li>
-                  <li><a href="/runQueryMenu"><i class="fa fa-circle-o"></i> 메뉴</a></li>
-                  <li><a href="/getAiquerys"><i class="fa fa-circle-o"></i> History</a></li>
-                  <li><a href="/getJobs"><i class="fa fa-circle-o"></i> 파일신청</a></li>
-                  <li><a href="javascript:guide()"><i class="fa fa-circle-o"></i> Guide</a></li>
-              </ul>
-          </li>
-      </ul>
-
-          <ul class="sidebar-menu" data-widget="tree" id="datamodelMenu">
-              <li class="treeview active">
-                  <a href="#">
-                      <i class="fa fa-database"></i> <span>AiMeta</span>
-                      <span class="pull-right-container">
-                          <i class="fa fa-angle-left pull-right"></i>
-                      </span>
-                  </a>
-                  <ul class="treeview-menu">
-                      <li id="getDbconfigsMenu"><a href="getDbconfigs"><i class="fa fa-circle-o"></i> DB세션</a></li>
-                      <li id="getDataModelsMenu"><a href="getDataModels"><i class="fa fa-circle-o"></i> 테이블 정보</a></li>
-                      <li id="manageMetarelationMenu"><a href="manageMetarelation"><i class="fa fa-circle-o"></i> 테이블 관계</a></li>
-                      <li><a href="getMetadomains"><i class="fa fa-circle-o"></i> 도메인</a></li>
-                      <li id="manageDataGrpMenu"><a href="manageDataGrp"><i class="fa fa-circle-o"></i> 데이터그룹</a></li>
-                  </ul>
-              </li>
-          </ul>
 
           <% if(user.mb_level>2) { %>
 
@@ -104,7 +68,6 @@
                   </a>
                   <ul class="treeview-menu">
                       <li id="getDbconfigsMenu"><a href="javascript:gotoMenu('getDbconfigs')"><i class="fa fa-circle-o"></i> 회사정보</a></li>
-                      <li id="manageMetarelationMenu"><a href="javascript:gotoMenu('manageMetarelation')"><i class="fa fa-circle-o"></i> 메뉴 권한</a></li>
                       <li id="manageDataGrpMenu"><a href="manageDataGrp"><i class="fa fa-circle-o"></i> 사용자 관리</a></li>
                   </ul>
               </li>

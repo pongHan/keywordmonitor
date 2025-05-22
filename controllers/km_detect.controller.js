@@ -1,4 +1,4 @@
-const KmDetectData = require('../models/kmDetectData');
+const KmDetectData = require('../models/km_detect.model.js');
 const { Op } = require('sequelize');
 
 exports.create = async (req, res) => {

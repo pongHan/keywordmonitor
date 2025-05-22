@@ -56,6 +56,8 @@ const routers = [
   './router/user.router.js',
   './router/account.router.js',
   './router/org.router.js',
+  './router/km_request.router.js',
+  './router/km_detect.router.js',
 ];
 
 routers.forEach(route => {

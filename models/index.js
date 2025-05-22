@@ -26,9 +26,11 @@ const sequelize = new Sequelize(
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
 
-db.user = require("./user.model.js")(sequelize, Sequelize);
-db.code = require("./code.model.js")(sequelize, Sequelize);
-db.mailcert = require("./mailcert.model.js")(sequelize, Sequelize);
-db.org = require("./org.model.js")(sequelize, Sequelize);
+db.user = require("./user.model.js")(sequelize, Sequelize.DataTypes);
+db.code = require("./code.model.js")(sequelize, Sequelize.DataTypes);
+db.mailcert = require("./mailcert.model.js")(sequelize, Sequelize.DataTypes);
+db.org = require("./org.model.js")(sequelize, Sequelize.DataTypes);
+db.km_request = require("./km_request.model.js")(sequelize, Sequelize.DataTypes);
+db.km_detect = require("./km_detect.model.js")(sequelize, Sequelize.DataTypes);
 
 module.exports = db;
