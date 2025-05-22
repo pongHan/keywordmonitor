@@ -11,8 +11,7 @@ const userController = require('../controllers/user.controller.js');
 global.appRoot = process.cwd();
 
 
-router.route('/viewUser')
-       .get(userAuth, userController.viewUser)
+//router.route('/viewUser').get(userAuth, userController.viewUser)
 
 router.route('/selectUser/:mb_id')
        .get(userAuth, userController.selectUser)

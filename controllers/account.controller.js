@@ -108,7 +108,7 @@ exports.postLogin = async (req, res, next) => {
       return;
     }
 
-    const sql = `SELECT mb_id, mb_email, mb_password2, mb_name, mb_level, org_id, org_name, site_id, pjt_id, email_verified, mb_level,
+    const sql = `SELECT mb_no, mb_id, mb_email, mb_password2, mb_name, mb_level, org_id, org_name, email_verified, mb_level,
                   ifnull(mb_leave_date, '') mb_leave_date, ifnull(mb_intercept_date, '') mb_intercept_date  
                   FROM tb_user WHERE mb_id = :mb_id `;
 
@@ -158,16 +158,15 @@ exports.postLogin = async (req, res, next) => {
       const jwtToken = await jwt.sign(user);
       jwt.accessToken[user[0].mb_id] = jwtToken.token;
 
+      req.session.mb_no = user[0].mb_no;
       req.session.mb_id = user[0].mb_id;
       req.session.mb_name = user[0].mb_name;
       req.session.mb_email = user[0].mb_email;
       req.session.org_name = user[0].org_name;
-      req.session.site_id = user[0].site_id;
       req.session.mb_type = user[0].mb_type;
       req.session.mb_level = user[0].mb_level;
       req.session.loggedIn = true;
       req.session.org_id = user[0].org_id;
-      req.session.pjt_id = user[0].pjt_id;
       res.cookie("token", jwtToken.refreshToken);
       logger.info("postLogin..");
       //res.render('aiqueryform', { user: req.session, message: "", err: "", resultRows: [] });
@@ -410,7 +409,7 @@ exports.checkGoogleAccount = async (req, res) => {
       console.log("newUser:", newUser);
     }
 
-    const sqlUser = `SELECT mb_id, mb_email, mb_name, mb_level, org_id, org_name, site_id, pjt_id, email_verified, mb_level,
+    const sqlUser = `SELECT mb_id, mb_email, mb_name, mb_level, org_id, org_name, email_verified, mb_level,
     ifnull(mb_leave_date, '') mb_leave_date, ifnull(mb_intercept_date, '') mb_intercept_date  
     FROM tb_user WHERE mb_id = :mb_id`;
 
@@ -455,15 +454,13 @@ exports.checkGoogleAccount = async (req, res) => {
       req.session.mb_name = user.mb_name;
       req.session.mb_email = user.mb_email;
       req.session.org_name = user.org_name;
-      req.session.site_id = user.site_id;
       req.session.mb_type = user.mb_type;
       req.session.mb_level = user.mb_level;
       req.session.loggedIn = true;
       req.session.org_id = user.org_id;
-      req.session.pjt_id = user.pjt_id;
       res.cookie("token", jwtToken.refreshToken);
 
-      return res.redirect("/getAicode");
+      return res.redirect("/viewUser");
     } else {
       console.error("User not found after creation.");
       res.status(500).json({
@@ -799,7 +796,7 @@ exports.viewUser = async (req, res, next) => {
   logger.info("viewUser " + mb_id);
 
   let query = `SELECT user.mb_no, user.mb_id, user.mb_name, user.mb_level, user.mb_type, user.mb_nick,
-                       user.mb_email, user.mb_hp, user.dept_name, user.org_id, user.pjt_id,
+                       user.mb_email, user.mb_hp,  user.org_id, 
                        DATE_FORMAT(user.mb_open_date,'%Y-%m-%d') as mb_open_date, 
                        DATE_FORMAT(user.email_verify_date, '%Y-%m-%d') AS email_verify_date,
                        org.org_name as org_id_name, cd.cd_nm mb_level_name
@@ -840,7 +837,6 @@ exports.updateUser = async (req, res, next) => {
   logger.info("accountController updateUser patch");
   let info = {
     mb_name: req.body.mb_name,
-    site_id: req.body.site_id,
     mb_nick: req.body.mb_nick,
     mb_type: req.body.mb_type,
     mb_level: req.body.mb_level,
@@ -848,7 +844,7 @@ exports.updateUser = async (req, res, next) => {
     mb_status: req.body.mb_status,
     mb_hp: req.body.mb_hp,
     org_id: req.body.org_id,
-    dept_name: req.body.dept_name,
+    
   };
   logger.debug(info);
 

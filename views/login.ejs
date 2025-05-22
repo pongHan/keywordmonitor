@@ -61,7 +61,7 @@
       .then((response) => {
         console.log(JSON.stringify(response));
         if (response.status == 200) {
-          location.href = "/getAicode";
+          location.href = "/viewUser";
         }
         else {
           alert(response.message);
@@ -134,7 +134,7 @@
 <body class="hold-transition login-page">
   <div class="login-box">
     <div class="login-logo">
-      <a href="../../index2.html"><b>metaBot</b></a>
+      <a href="../../index2.html"><b>KeywordMonitor</b></a>
     </div>
     <!-- /.login-logo -->
     <div class="login-box-body">
@@ -142,11 +142,11 @@
 
       <form  method="post" id="loginForm" name="loginForm" >
         <div class="form-group has-feedback">
-          <input class="form-control" placeholder="Login Id" id="mb_id" name="mb_id" value="" />
+          <input class="form-control" placeholder="Login Id" id="mb_id" name="mb_id" value="manager1" />
         </div>
         <div class="form-group has-feedback">
           <input type="password" class="form-control" placeholder="Password" id="mb_password" name="mb_password"
-            value="" />
+            value="pass77" />
           <span class="glyphicon glyphicon-lock form-control-feedback"></span>
         </div>
         <div class="row">

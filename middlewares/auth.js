@@ -1,5 +1,5 @@
 const jwt = require('../modules/jwt');
-const commonLib = require('../modules/util.lib.js');
+const commonLib = require('../modules/common.lib.js');
 
 const authProcess = {
     userAuth: async (req, res, next) => {

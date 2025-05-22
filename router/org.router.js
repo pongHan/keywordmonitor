@@ -1,6 +1,6 @@
 
 //**********************************************/
-//  @Project :metaBot (메타봇)
+//  @Project :KeywordMonitor (메타봇)
 //  @File :org.router.js
 //  @Desc :기관/회사 router
 //  @Author :modeller77@gmail.com

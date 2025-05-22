@@ -33,8 +33,6 @@ router.route('/resetpassword')
        .get(accountController.getresetPassword) // get request for login
        .post(accountController.postresetPassword)// post request for login
 
-router.get('/viewManual', accountController.viewManual);
-
 router.get('/viewAgreement/:type', accountController.viewAgreement);
 
 router.get('/logout', accountController.logout); //logout       

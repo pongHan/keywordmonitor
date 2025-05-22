@@ -1,10 +1,10 @@
 'use strict'; //업격모드
 
 const { Sequelize, DataTypes } = require('sequelize');
-const { DB_HOST, DB_DATABASE, DB_USER, DB_PASSWORD, DB_PORT } = require('../config.js');
+const { DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT } = require('../config.js');
 console.log("datamodel index.js");
 console.log("DB_HOST="+DB_HOST);
-console.log("DB_DATABASE="+DB_DATABASE);
+console.log("DB_NAME="+DB_NAME);
 console.log("DB_USER="+DB_USER);
 console.log("DB_PORT="+DB_PORT);
 
@@ -13,7 +13,7 @@ console.log("DB_PORT="+DB_PORT);
 const db = {};
 
 const sequelize = new Sequelize(
-    DB_DATABASE,   
+    DB_NAME,   
     DB_USER,       
     DB_PASSWORD,   
     {
