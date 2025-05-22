@@ -12,7 +12,76 @@ const db = require("../models");
 const km_detect = db.km_detect;
 const commonLib = require('../modules/common.lib');
 const dayjs = require('dayjs');
+const { Op } = require('sequelize');
+const puppeteer = require('puppeteer');
 
+
+
+
+exports.screenshotDetection = async (req, res) => {
+  const { detect_id } = req.params;
+  console.log("screenshotDetection: detect_id=" + detect_id);
+
+  try {
+    if (!km_detect) {
+      throw new Error('km_detect model is undefined');
+    }
+    const detection = await km_detect.findOne({
+      where: { detect_id, detect_status: { [Op.ne]: 'deleted' } }
+    });
+    if (!detection) {
+      console.log(`No detection found for detect_id=${detect_id}`);
+      return res.status(404).json({ success: false, message: 'Detection not found', status: 404 });
+    }
+
+    const post_url = detection.post_url;
+    console.log(`post_url=${post_url}`);
+
+    // Normalize and encode URL
+    let normalized_url;
+    try {
+      normalized_url = new URL(post_url).href;
+      console.log(`Normalized URL: ${normalized_url}`);
+    } catch (urlError) {
+      console.error(`URL parsing error: ${urlError.message}`);
+      return res.status(400).json({ success: false, message: 'Invalid URL structure', status: 400 });
+    }
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+    try {
+      // Set viewport to a reasonable width to ensure consistent rendering
+      await page.setViewport({ width: 1280, height: 720 });
+
+      // Navigate to the URL
+      await page.goto(normalized_url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+      // Capture full-page screenshot
+      const screenshot = await page.screenshot({
+        type: 'png',
+        fullPage: true // Capture the entire scrollable content
+      });
+
+      await browser.close();
+
+      res.set({
+        'Content-Type': 'image/png',
+        'Content-Disposition': `attachment; filename="screenshot_${detect_id}.png"`
+      });
+      res.send(screenshot);
+    } catch (navigationError) {
+      console.error(`Navigation error for URL ${normalized_url}:`, navigationError);
+      await browser.close();
+      return res.status(500).json({ success: false, message: 'Failed to load URL', status: 500 });
+    }
+  } catch (error) {
+    console.error('Error capturing screenshot:', error);
+    return res.status(500).json({ success: false, message: 'Server error', status: 500 });
+  }
+};
 
 exports.getDetects = async (req, res, next) => {
   const url = require('url');

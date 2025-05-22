@@ -12,7 +12,7 @@
 
     event.preventDefault();
     const formData = new URLSearchParams(new FormData(document.workForm));
-    fetch("/api/updateDetect", {
+    fetch("/api/detections/updateDetection", {
       method: "PATCH",
       mode: "same-origin",
       credentials: "same-origin",
@@ -34,7 +34,7 @@
   function deleteCurrent(detect_id) {
     if (confirm("정말 삭제하시겠습니까?")) {
       event.preventDefault();
-      fetch(`/api/deleteDetect/${detect_id}`, {
+      fetch(`/api/detections/deleteDetection/${detect_id}`, {
         method: "DELETE",
         mode: "same-origin",
         credentials: "same-origin",
@@ -61,7 +61,7 @@
     form.submit();
   }
 
-    function visitUrl(url) {
+  function visitUrl(url) {
     if (url) {
       window.open(url, '_blank');
     } else {
@@ -69,6 +69,39 @@
     }
   }
 
+  function captureUrl(detect_id) {
+    if (!detect_id) {
+      toastr.warning("Detect ID가 없습니다.");
+      return;
+    }
+
+    fetch(`/screenshot/${detect_id}`, {
+      method: "GET",
+      mode: "same-origin",
+      credentials: "same-origin",
+    })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("스크린샷 생성 실패");
+      }
+      return response.blob();
+    })
+    .then((blob) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `screenshot_${detect_id}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toastr.success("스크린샷이 다운로드되었습니다.");
+    })
+    .catch((error) => {
+      console.error('Error capturing screenshot:', error);
+      toastr.error("스크린샷 생성 중 에러가 발생하였습니다.");
+    });
+  }
 </script>
 
 <div class="content-wrapper">
@@ -120,11 +153,11 @@
             </div>
             <div class="form-group">
               <label>Detect Title <span class="text-red">*</span></label>
-              <input type="text" class="form-control" id="post_title" name="post_title" value="<%= info.post_title %>" required />
+              <input type="text" class="form-control" id="detect_title" name="detect_title" value="<%= info.detect_title %>" required />
             </div>
             <div class="form-group">
               <label>Detect Content <span class="text-red">*</span></label>
-              <textarea class="form-control" id="post_content" name="post_content" required><%= info.post_content %></textarea>
+              <textarea class="form-control" id="detect_content" name="detect_content" required><%= info.detect_content %></textarea>
             </div>
             <div class="form-group">
               <label>Detect Status</label>
@@ -144,7 +177,7 @@
             </div>
             <div class="form-group">
               <label>Detect Datetime</label>
-              <input type="text" readonly class="form-control" id="detect_datetime" name="detect_datetime" value="<%= info.detect_date_formatted %>" />
+              <input type="text" readonly class="form-control" id="detect_datetime" name="detect_datetime" value="<%= info.detect_datetime %>" />
             </div>
 
             <div class="form-group">
@@ -158,10 +191,11 @@
                 <button type="button" class="pull-right btn btn-default" style="margin-right: 5px" onclick="list()">
                   <i class="fa fa-list"></i> 목록
                 </button>
-
-                
                 <button type="button" class="pull-right btn btn-default" style="margin-right: 5px" onclick="visitUrl('<%= info.post_url %>')">
                   <i class="fa fa-external-link"></i> URL 방문
+                </button>
+                <button type="button" class="pull-right btn btn-default" style="margin-right: 5px" onclick="captureUrl('<%= info.detect_id %>')">
+                  <i class="fa fa-camera"></i> 화면캡처
                 </button>
               </div>
             </div>

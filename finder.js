@@ -42,7 +42,7 @@ const {
     RETRY_DELAY,
     SCREENSHOT_DIR,
     MAX_SCREENSHOTS
-} = require('./modules/common.lib');
+} = require('./modules/util.lib');
 
 // 스텔스 플러그인 등록
 puppeteer.use(StealthPlugin());
@@ -174,7 +174,7 @@ async function checkDuplicatePost(config, detectedTitle, timeWindowMinutes = 10)
 }
 
 // 게시물 삽입
-async function insertNotificationData(config, detectedTitle, keyword) {
+async function insertNotificationData(config, post) {
     let connection;
     try {
         connection = await db.getConnection();
@@ -194,12 +194,12 @@ async function insertNotificationData(config, detectedTitle, keyword) {
             config.id,
             config.req_mb_id,
             config.board_name,
-            config.url,
-            keyword,
-            detectedTitle
+            post.link,
+            post.keyword,
+            post.title
         ];
         const [result] = await connection.query(insertQuery, insertValues);
-        log('info', `Inserted notification data with ID: ${result.insertId} for keyword: ${keyword}`);
+        log('info', `Inserted notification data with ID: ${result.insertId} for keyword: ${post.keyword}`);
         return { inserted: true, detect_id: result.insertId };
     } catch (error) {
         log('error', `Error in insertNotificationData: ${error.message}`);
@@ -346,18 +346,18 @@ async function crawlWithPuppeteer(config) {
         for (const post of allPostsToNotify) {
             const duplicateCheck = await checkDuplicatePost(config, post.title);
             if (!duplicateCheck.isDuplicate) {
-                await insertNotificationData(config, post.title, post.keyword);
+                await insertNotificationData(config, post);
                 nonDuplicatePosts.push(post);
             }
         }
         // 중복되지 않은 게시물이 있을 경우에만 이메일 발송
         if (nonDuplicatePosts.length > 0) {
-            await sendEmail({
-                subject: `[알림] ${board_name} 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
-                posts: nonDuplicatePosts,
-                receiverEmail: receiver_email,
-                receiverName: receiver_name,
-            });
+            // await sendEmail({
+            //     subject: `[알림] ${board_name} 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+            //     posts: nonDuplicatePosts,
+            //     receiverEmail: receiver_email,
+            //     receiverName: receiver_name,
+            // });
         } else {
             log('info', 'No new posts to notify after duplicate check.');
         }
@@ -423,18 +423,18 @@ async function fetchBoard(config) {
                 for (const post of postsToNotify) {
                     const duplicateCheck = await checkDuplicatePost(config, post.title);
                     if (!duplicateCheck.isDuplicate) {
-                        await insertNotificationData(config, post.title, post.keyword);
+                        await insertNotificationData(config, post);
                         nonDuplicatePosts.push(post);
                     }
                 }
                 // 중복되지 않은 게시물이 있을 경우에만 이메일 발송
                 if (nonDuplicatePosts.length > 0) {
-                    await sendEmail({
-                        subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
-                        posts: nonDuplicatePosts,
-                        receiverEmail: receiver_email,
-                        receiverName: receiver_name,
-                    });
+                    // await sendEmail({
+                    //     subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+                    //     posts: nonDuplicatePosts,
+                    //     receiverEmail: receiver_email,
+                    //     receiverName: receiver_name,
+                    // });
                 } else {
                     log('info', 'No new posts to notify after duplicate check.');
                 }

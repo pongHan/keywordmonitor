@@ -18,5 +18,7 @@ router.route('/selectDetect/:detect_id')
       .get(userAuth, kmDetectController.selectDetect)
 router.route('/deleteDetectAll')
       .delete(userAuth, kmDetectController.deleteDetectAll)
+router.route('/screenshot/:detect_id')
+      .get(userAuth, kmDetectController.screenshotDetection);
 
 module.exports = router;
