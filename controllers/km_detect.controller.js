@@ -11,6 +11,8 @@ const { QueryTypes } = require("sequelize");
 const db = require("../models");
 const km_detect = db.km_detect;
 const commonLib = require('../modules/common.lib');
+const dayjs = require('dayjs');
+
 
 exports.getDetects = async (req, res, next) => {
   const url = require('url');
@@ -25,11 +27,12 @@ exports.getDetects = async (req, res, next) => {
 
   let whereSql = "WHERE 1";
   let user_id = req.session.mb_id;
-  if (user_id !== "modeller77@gmail.com") {
+/*   if (user_id !== "modeller77@gmail.com") {
     whereSql = `WHERE req_mb_id = '${req.session.mb_id}'`;
   }
+ */
   if (iWord) {
-    whereSql += ` AND (board_name LIKE '%${iWord}%' OR keyword LIKE '%${iWord}%' OR detect_title LIKE '%${iWord}%')`;
+    whereSql += ` AND (board_name LIKE '%${iWord}%' OR keyword LIKE '%${iWord}%' OR post_title LIKE '%${iWord}%')`;
   }
 
   // 전체 글 갯수 획득
@@ -46,7 +49,7 @@ exports.getDetects = async (req, res, next) => {
 
   let paging = commonLib.getPaging(page, pageRow, pageScale, totalCount, selfUrl, `&iWord=${iWord}`);
 
-  query = `SELECT detect_id, req_id, req_mb_id, board_name, post_url, keyword, detect_datetime, detect_title, detect_content, detect_status, after_proc, proc_datetime
+  query = `SELECT detect_id, req_id, req_mb_id, board_name, post_url, keyword, detect_datetime, post_title, post_content, detect_status, after_proc, proc_datetime
              FROM km_detect ${whereSql}
              ORDER BY detect_id DESC
              LIMIT ${fromRecord}, ${pageRow}`;
@@ -59,7 +62,10 @@ exports.getDetects = async (req, res, next) => {
               elem[key] = value.toString('utf8');
             }
           }
+          elem.detect_date_formatted = dayjs(elem.detect_datetime).format('YYYY-MM-DD');
+
         });
+
         res.render('detectlist', {
           user: req.session, message: "", err: "", list: rows, rWord: iWord, rPage: iPage, paging: paging
         });
@@ -87,7 +93,7 @@ exports.postDetects = async (req, res, next) => {
     whereSql = `WHERE req_mb_id = '${req.session.mb_id}'`;
   }
   if (iWord) {
-    whereSql += ` AND (board_name LIKE '%${iWord}%' OR keyword LIKE '%${iWord}%' OR detect_title LIKE '%${iWord}%')`;
+    whereSql += ` AND (board_name LIKE '%${iWord}%' OR keyword LIKE '%${iWord}%' OR post_title LIKE '%${iWord}%')`;
   }
 
   // 페이징 설정
@@ -99,7 +105,7 @@ exports.postDetects = async (req, res, next) => {
 
   let paging = commonLib.getPaging(page, pageRow, pageScale, totalCount, selfUrl, `&iWord=${iWord}`);
 
-  query = `SELECT detect_id, req_id, req_mb_id, board_name, post_url, keyword, detect_datetime, detect_title, detect_content, detect_status, after_proc, proc_datetime
+  query = `SELECT detect_id, req_id, req_mb_id, board_name, post_url, keyword, detect_datetime, post_title, post_content, detect_status, after_proc, proc_datetime
              FROM km_detect ${whereSql}
              ORDER BY detect_id DESC
              LIMIT ${fromRecord}, ${pageRow}`;
@@ -134,8 +140,8 @@ exports.addDetect = async (req, res, next) => {
     board_name: req.body.board_name,
     post_url: req.body.post_url,
     keyword: req.body.keyword,
-    detect_title: req.body.detect_title,
-    detect_content: req.body.detect_content,
+    post_title: req.body.post_title,
+    post_content: req.body.post_content,
     detect_status: req.body.detect_status || 'open',
     after_proc: req.body.after_proc || '',
     proc_datetime: req.body.proc_datetime || '0000-00-00 00:00:00',
@@ -163,7 +169,7 @@ exports.viewDetect = async (req, res, next) => {
   const iPage = req.body.iPage;
   const iWord = req.body.iWord;
 
-  let query = `SELECT detect_id, req_id, req_mb_id, board_name, post_url, keyword, detect_datetime, detect_title, detect_content, detect_status, after_proc, proc_datetime
+  let query = `SELECT detect_id, req_id, req_mb_id, board_name, post_url, keyword, detect_datetime, post_title, post_content, detect_status, after_proc, proc_datetime
                  FROM km_detect
                 WHERE detect_id = ${detect_id}`;
   const row = await sequelize.query(query, { type: QueryTypes.SELECT, raw: true }).catch(err => { console.error(err); });
@@ -173,6 +179,7 @@ exports.viewDetect = async (req, res, next) => {
         elem[key] = value.toString('utf8');
       }
     }
+    elem.detect_date_formatted = dayjs(elem.detect_datetime).format('YYYY-MM-DD');
   });
 
   res.render('detectview', {
@@ -190,8 +197,8 @@ exports.updateDetect = async (req, res, next) => {
     board_name: req.body.board_name,
     post_url: req.body.post_url,
     keyword: req.body.keyword,
-    detect_title: req.body.detect_title,
-    detect_content: req.body.detect_content,
+    post_title: req.body.post_title,
+    post_content: req.body.post_content,
     detect_status: req.body.detect_status,
     after_proc: req.body.after_proc,
     proc_datetime: req.body.proc_datetime
@@ -211,6 +218,19 @@ exports.deleteDetect = async (req, res) => {
       where: { detect_id: req.params.detect_id }
     });
     res.json({ status: '200', message: '삭제하였습니다' });
+  } catch (error) {
+    res.json({ status: '400', message: '네트워크 에러입니다', error: { message: error.message } });
+  }
+};
+
+exports.deleteDetectAll = async (req, res) => {
+  try {
+    const data = await km_detect.destroy({
+      where: {}, // 모든 조건 제거 => 전체 삭제
+      truncate: true  // 물리적으로 테이블 비우기 (옵션)
+    });
+
+    res.json({ status: '200', message: '전체 삭제하였습니다' });
   } catch (error) {
     res.json({ status: '400', message: '네트워크 에러입니다', error: { message: error.message } });
   }

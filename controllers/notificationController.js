@@ -11,7 +11,7 @@ const insertNotificationData = async (config, detectedTitle) => {
                 post_url,
                 keyword,
                 detect_datetime,
-                detect_title,
+                post_title,
                 detect_status
             ) VALUES ($1, $2, $3, $4, $5, NOW(), $6, '1')
             RETURNING id

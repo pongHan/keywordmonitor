@@ -16,5 +16,7 @@ router.route('/listDetects')
       .get(userAuth, kmDetectController.listDetects)
 router.route('/selectDetect/:detect_id')
       .get(userAuth, kmDetectController.selectDetect)
+router.route('/deleteDetectAll')
+      .delete(userAuth, kmDetectController.deleteDetectAll)
 
 module.exports = router;

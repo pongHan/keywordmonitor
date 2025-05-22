@@ -46,13 +46,13 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         comment: "감지일시",
       },
-      detect_title: {
+      post_title: {
         type: DataTypes.STRING(255),
         allowNull: false,
         defaultValue: "",
         comment: "글제목",
       },
-      detect_content: {
+      post_content: {
         type: DataTypes.TEXT,
         allowNull: false,
         comment: "글내용",
