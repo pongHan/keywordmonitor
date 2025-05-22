@@ -1,0 +1,81 @@
+<script>
+  function getAppmenuList() {
+    console.log("getQuerymenuList..")
+    fetch(`/listQuerymenu`, {
+      method: "GET",
+      mode: "same-origin",
+      credentials: "same-origin",
+    })
+      .then(response => response.json())
+      .then(data => {
+
+        console.log("data=" + JSON.stringify(data));
+        const $menuTree = createAppMenuTree(data, 0);
+        $('#menu-container').html($menuTree);
+
+      })
+      .catch(err => {
+        console.error("AI쿼리메뉴리스트 조회중 에러가 발생하였습니다.", err);
+      });
+  }
+
+
+  function createAppMenuTree(listData, folderId) {
+    const $ul = $('<ul></ul>'); // UL 태그 생성
+    listData.filter(item => item.folder_id === folderId).forEach(item => {
+      // LI 태그 생성, 폴더 이름과 버튼을 포함하는 span 태그 추가
+      const $li = $('<li style="cursor:pointer;"></li>');
+
+      if (item.menu_type === '1' || item.menu_type === '2') {
+        const $span = $(`<span><i class="fa fa-folder"></i>&nbsp;${item.menu_name}&nbsp;&nbsp;</span>`); // 폴더 이름
+        $li.append($span);
+        const $nestedUl = createMenuTree(listData, item.menu_id); // 재귀적으로 하위 메뉴 생성
+        $nestedUl.show(); // 기본적으로 하위 메뉴를 숨김 설정
+        $li.append($nestedUl); // LI 태그에 하위 UL 태그 추가
+        $li.addClass('folder'); // 폴더 클래스 추가
+
+        const $button = $('<i class="fa fa-edit"></i>'); // 선택 버튼 추가
+        $button.on('click', function (e) {
+          e.stopPropagation(); // 이벤트 버블링 방지
+          selectMenu(item.menu_id); // selectMenu 함수 호출
+        });
+        $span.append($button); // span 태그에 버튼 추가
+
+        $span.on('click', function (e) {
+          e.stopPropagation(); // 이벤트 버블링 방지
+          $nestedUl.toggle(); // 하위 메뉴 토글
+        });
+      } else if (item.menu_type === '3') {
+        const $span = $(`<span><i class="fa fa-circle-o">${item.menu_name}&nbsp;&nbsp;</span>`);
+        $li.append($span);
+        $li.on('click', function (e) {
+          e.stopPropagation(); // 이벤트 버블링 방지
+          selectMenu(item.menu_id); // selectMenu 함수 호출
+        });
+      }
+
+      $ul.append($li); // 최종적으로 UL 태그에 LI 태그 추가
+    });
+    return $ul; // 완성된 UL 태그 반환
+  }
+
+  getAppmenuList();
+  
+</script>
+<ul class="sidebar-menu" data-widget="tree">
+  <li class="treeview active">
+    <a href="#">
+      <i class="fa fa-edit"></i> <span>메뉴</span>
+      <span class="pull-right-container">
+        <i class="fa fa-angle-left pull-right"></i>
+      </span>
+    </a>
+
+    <ul class="treeview-menu" id="menu-container">
+      <li>
+        <a href="getAiQuery">
+          <i class="fa fa-circle-o"></i> Playground </a>
+      </li>
+    </ul>
+  </li>
+</ul>

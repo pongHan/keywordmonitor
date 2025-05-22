@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko" class="no-js">
+
+<head>
+  <%- include layout/js.ejs %>
+
+    <%- include layout/header.ejs %>
+      <style>
+      
+        .js #fouc {
+          display: none
+        }
+
+        .hidden {
+          display: none;
+        }
+
+        .center-text {
+          text-align: center;
+        }
+
+        th {
+          text-align: center;
+          background-color: #f9f9f9;
+        }
+
+        td {
+          text-align: center;
+        }
+      </style>
+
+<style>
+  .form-group {
+    display: flex;        /* Flexbox 레이아웃 사용 */
+    align-items: center;  /* 요소들을 세로 중앙에 정렬 */
+    margin-bottom: 10px;  /* 각 폼 그룹 사이의 여백 */
+    justify-content: flex-end;
+  }
+  .form-group label {
+    flex-basis: 20%;      /* 라벨이 차지하는 기본 공간을 20%로 설정 */
+    flex-shrink: 0;       /* 라벨 크기가 축소되지 않도록 설정 */
+    margin-right: 20px;   /* 라벨과 입력 필드 사이 간격 */
+    white-space: nowrap;  /* 라벨 텍스트 줄바꿈 방지 */
+    text-align: right;
+  }
+  .form-group input {
+    flex-grow: 1;         /* 입력 필드가 남은 공간을 모두 차지하도록 확장 */
+  }
+
+  .form-check {
+    display: flex;
+    align-items: center; /* 체크박스와 레이블을 세로 중앙 정렬 */
+    margin-right: 10px; /* 버튼과의 간격 조정 */
+  }
+
+  .form-check-label {
+    margin-left: 5px; /* 체크박스와 레이블 사이의 간격 조정 */
+  }
+
+ 
+</style>
+      <script>
+        (function (H) { H.className = H.className.replace(/\bno-js\b/, 'js') })(document.documentElement)
+      </script>
+</head>
+
+<body class="hold-transition skin-blue sidebar-mini">
+  <div id="fouc">
+    <div class="wrapper">
+      <%- include layout/navigation.ejs %> 
+      <% if(user.mb_level>='2') { %>
+      <%- include layout/sidebar.ejs %>
+      <% } else { %>
+      <% } %>
+      

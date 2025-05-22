@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+        <%=filename%>
+    </title>
+    <style>
+        .button {
+            background-color: #4CAF50;
+            /* Green */
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+        }
+
+        .content {
+            background-color: black;
+            color: white;
+            font-size: 12pt;
+            padding:10px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/prettier@2.4.0/standalone.js"></script>
+    <script>
+        const scriptElement = document.getElementById('output');
+        const scriptContent = scriptElement.text();
+        const formattedCode = prettier.format(scriptContent, { parser: 'babel' });
+        scriptElement.text(formattedCode);
+
+        function savePageAsFile() {
+            const htmlContent = document.getElementById("output").textContent;
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = '<%=filename%>';
+            link.click();
+            URL.revokeObjectURL(url);
+            link.remove();
+        }
+
+        function copyToClipboard() {
+            const preTag = document.getElementById('output');
+            const content = preTag.textContent;
+            const textarea = document.createElement('textarea');
+            textarea.value = content;
+            textarea.style.position = 'fixed'; // Make it hidden and off-screen
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert("source code copied to clipboard");
+        }
+
+        // Assuming you have a <pre> tag with an ID of "myPreTag"
+
+    </script>
+</head>
+
+<body class="content">
+    <form>
+        <div style="text-align:center; font-size:12pt; color:#aaaaaa; height:30px; margin-top:20px;">
+            This code is written according to the framework template. After checking, modify it to suit your purpose.
+        </div>
+        <div style="text-align:center; margin-top: 15px;">
+            <button type="button" class="button" onClick="savePageAsFile()">Download</button>
+            &nbsp;&nbsp;
+            <button type="button" class="button" onclick="copyToClipboard()">Copy</button>
+            &nbsp;&nbsp;
+            <button type="button" class="button" onclick="window.close()">Close</button>
+        </div>
+        <pre id="output"><br><%= fileContent %><br></pre>
+        <div style="text-align:center">
+            <button type="button" class="button" onClick="savePageAsFile()">Download</button>
+            &nbsp;&nbsp;
+            <button type="button" class="button" onclick="copy()">Copy</button>
+            &nbsp;&nbsp;
+            <button type="button" class="button" onclick="window.close()">Close</button>
+        </div>
+    </form>
+    <div style="text-align:center; font-size:12pt; color:#aaaaaa; height:30px; margin-top:20px;">
+        This code is written according to the framework template. After checking, modify it to suit your purpose.
+    </div>
+</body>
+
+</html>

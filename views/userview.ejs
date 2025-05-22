@@ -1,0 +1,209 @@
+<%-include ./user.head.ejs %>
+
+<script type="text/javascript">
+  function update() {
+    event.preventDefault();
+    const formData = new URLSearchParams(new FormData(document.workForm));
+    fetch("/updateUser", {
+      method: "PATCH",
+      mode: "same-origin",
+      credentials: "same-origin",
+      body: formData,
+    })
+      .then((res) => res.json())
+      .then((response) => {
+        if (response.status == 200) {
+          toastr.success("수정하였습니다");
+        } else {
+          toastr.warning(response.message);
+        }
+      })
+      .catch((error) => {
+        toastr.error("에러가 발생 하였습니다.");
+      });
+  }
+
+  function deleteCurrent(pid) {
+    if (confirm("정말 삭제하시겠습니까?")) {
+      event.preventDefault();
+      fetch(`/deleteUser/${pid}`, {
+        method: "DELETE",
+        mode: "same-origin",
+        credentials: "same-origin",
+      })
+        .then((res) => res.json())
+        .then((response) => {
+          if (response.status == 200) {
+            alert("삭제하였습니다");
+            location.href = "/getUsers";
+          } else {
+            toastr.error(response.message);
+          }
+        })
+        .catch((error) => {
+          toastr.error("에러가 발생 하였습니다.");
+        });
+    }
+  }
+
+  function list() {
+    var form = document.workForm;
+    form.method = "GET";
+    form.action = "/getUsers";
+    form.submit();
+  }
+</script>
+
+<% if(message.length){ %>
+<script>
+  toastr.success("<%=msg%>");
+</script>
+<% } %> <% if(err.length){ %>
+<script>
+  toastr.error("<%=err%>");
+</script>
+<% } %>
+
+<div class="content-wrapper">
+  <section class="content-header">
+    <h1>
+      사용자
+      <small>자연어Query</small>
+    </h1>
+    <ol class="breadcrumb">
+      <li>
+        <a href="#"><i class="fa fa-dashboard"></i> Home</a>
+      </li>
+      <li class="active">사용자</li>
+    </ol>
+  </section>
+
+  <section class="content">
+    <div class="row">
+      <div class="box box-info" style="padding: 20px">
+        <div class="box-body">
+          <form id="UserForm" name="workForm" method="post">
+            <input type="hidden" name="iPage" id="iPage" value="<%= rPage %>" />
+
+            <div class="form-group">
+    <label>ID</label>
+    <input type="text" readonly class="form-control" id="mb_no" name="mb_no" value="<%= info.mb_no %>" />
+  </div>
+<div class="form-group">
+    <label>로그인ID</label>
+    <input type="text"  class="form-control" id="mb_id" name="mb_id" value="<%= info.mb_id %>" />
+  </div>
+<div class="form-group">
+    <label>비밀번호</label>
+    <input type="text"  class="form-control" id="mb_password" name="mb_password" value="<%= info.mb_password %>" />
+  </div>
+<div class="form-group">
+    <label>비밀번호2</label>
+    <input type="text"  class="form-control" id="mb_password2" name="mb_password2" value="<%= info.mb_password2 %>" />
+  </div>
+<div class="form-group">
+    <label>이름</label>
+    <input type="text"  class="form-control" id="mb_name" name="mb_name" value="<%= info.mb_name %>" />
+  </div>
+<div class="form-group">
+    <label>회사명</label>
+    <input type="text"  class="form-control" id="org_name" name="org_name" value="<%= info.org_name %>" />
+  </div>
+<div class="form-group">
+    <label>사이트ID</label>
+    <input type="text"  class="form-control" id="site_id" name="site_id" value="<%= info.site_id %>" />
+  </div>
+<div class="form-group">
+    <label>별명</label>
+    <input type="text"  class="form-control" id="mb_nick" name="mb_nick" value="<%= info.mb_nick %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="mb_type" name="mb_type" value="<%= info.mb_type %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="mb_level" name="mb_level" value="<%= info.mb_level %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="mb_email" name="mb_email" value="<%= info.mb_email %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="email_verified" name="email_verified" value="<%= info.email_verified %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="email_verify_date" name="email_verify_date" value="<%= info.email_verify_date %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="verify_token" name="verify_token" value="<%= info.verify_token %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="mb_status" name="mb_status" value="<%= info.mb_status %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="mb_hp" name="mb_hp" value="<%= info.mb_hp %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="org_id" name="org_id" value="<%= info.org_id %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="dept_name" name="dept_name" value="<%= info.dept_name %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="mb_open_date" name="mb_open_date" value="<%= info.mb_open_date %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="mb_leave_date" name="mb_leave_date" value="<%= info.mb_leave_date %>" />
+  </div>
+<div class="form-group">
+    <label></label>
+    <input type="text"  class="form-control" id="mb_intercept_date" name="mb_intercept_date" value="<%= info.mb_intercept_date %>" />
+  </div>
+
+ 
+            <div class="form-group">
+              <div class="form-inline text-center">
+                <button
+                  type="button"
+                  class="pull-right btn btn-default"
+                  style="margin-right: 10px"
+                  onclick="update()"
+                >
+                  <i class="fa fa-save"></i> 저장
+                </button>
+                <button
+                  type="button"
+                  class="pull-right btn btn-default"
+                  style="margin-right: 5px"
+                  onclick="deleteCurrent('<%=info.id%>')"
+                >
+                  <i class="fa fa-trash"></i> 삭제
+                </button>
+                <button
+                  type="button"
+                  class="pull-right btn btn-default"
+                  style="margin-right: 5px"
+                  onclick="list()"
+                >
+                  <i class="fa fa-list"></i> 목록
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<%-include ./user.tail.ejs %>

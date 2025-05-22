@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Log in</title>
+  <!-- Tell the browser to be responsive to screen width -->
+  <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport" />
+  <!-- Bootstrap 3.3.7 -->
+  <link rel="stylesheet" href="/script-adminlte/bower_components/bootstrap/dist/css/bootstrap.min.css" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="/script-adminlte/bower_components/font-awesome/css/font-awesome.min.css" />
+  <!-- Ionicons -->
+  <link rel="stylesheet" href="/script-adminlte/bower_components/Ionicons/css/ionicons.min.css" />
+  <!-- Theme style -->
+  <link rel="stylesheet" href="/script-adminlte/dist/css/AdminLTE.min.css" />
+  <!-- iCheck -->
+  <link rel="stylesheet" href="/script-adminlte/plugins/iCheck/square/blue.css" />
+
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic" />
+
+  <script src="/script-adminlte/bower_components/jquery/dist/jquery.min.js"></script>
+  <script src="/javascript/util.js"></script>
+</head>
+<script>
+
+  function login(event) {  
+    event.preventDefault(); 
+
+    if (!$("#mb_id").val().trim()) {
+      alert("아이디를 입력하세요.");
+      $("#mb_id").focus();
+      return false;
+    }
+
+    if (!$("#mb_password").val().trim()) {
+      alert("비밀번호를 입력하세요.");
+      $("#mb_password").focus();
+      return false;
+    }
+
+    var checkBox = document.getElementById("saveUserId");
+    var userId = $("#mb_id").val().trim();
+    if (checkBox.checked && userId) {
+      setCookie("userid", userId, 7);
+    }
+    var password = $("#mb_password").val().trim();
+    if (checkBox.checked && userId) {
+      setCookie("password", password, 7);
+    }
+    const formData = new URLSearchParams(new FormData(document.loginForm));
+    fetch("/login", {
+      method: 'POST',
+      mode: 'same-origin',
+      credentials: 'same-origin',
+      body: formData,
+    })
+      .then(res => res.json())
+      .then((response) => {
+        console.log(JSON.stringify(response));
+        if (response.status == 200) {
+          location.href = "/getAicode";
+        }
+        else {
+          alert(response.message);
+        }
+      })
+      .catch((error) => {
+        console.error("에러가 발생하였습니다.", error);
+        alert("로그인 처리 중 에러가 발생하였습니다.");
+      });
+  }
+
+  function login22() {
+
+    if (!$("#mb_id").val().trim()) {
+      alert("아이디를 입력하세요.");
+      $("#mb_id").focus();
+      return false;
+    }
+
+    if (!$("#mb_password").val().trim()) {
+      alert("비밀번호를 입력하세요.");
+      $("#mb_password").focus();
+      return false;
+    }
+
+    var checkBox = document.getElementById("saveUserId");
+    var userId = $("#mb_id").val().trim();
+    if (checkBox.checked && userId) {
+      setCookie("userid", userId, 7);
+    }
+    var password = $("#mb_password").val().trim();
+    if (checkBox.checked && userId) {
+      setCookie("password", password, 7);
+    }
+    event.preventDefault();
+    const formData = new URLSearchParams(new FormData(document.loginForm));
+    fetch("/login", {
+      method: 'POST',
+      mode: 'same-origin',
+      credentials: 'same-origin',
+      body: formData,
+    })
+      .then(res => res.json())
+      .then((response) => {
+        console.log(response);
+        if (response.status == 200) {
+          //alert("로그인하였습니다");
+          location.href = "/getAiquery";
+        } else {
+          alert(response.message);
+        }
+      }).catch((error) => {
+        alert("에러가 발생 하였습니다.");
+      });
+  }
+
+  $(document).ready(function () {
+    var userId = getCookie("userid");
+    if (userId) {
+      $("#mb_id").val(userId);
+    }
+    var password = getCookie("password");
+    if (password) {
+      $("#mb_password").val(password);
+    }
+  });
+
+</script>
+
+<body class="hold-transition login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <a href="../../index2.html"><b>metaBot</b></a>
+    </div>
+    <!-- /.login-logo -->
+    <div class="login-box-body">
+      <p class="login-box-msg">Log in to start your session</p>
+
+      <form  method="post" id="loginForm" name="loginForm" >
+        <div class="form-group has-feedback">
+          <input class="form-control" placeholder="Login Id" id="mb_id" name="mb_id" value="" />
+        </div>
+        <div class="form-group has-feedback">
+          <input type="password" class="form-control" placeholder="Password" id="mb_password" name="mb_password"
+            value="" />
+          <span class="glyphicon glyphicon-lock form-control-feedback"></span>
+        </div>
+        <div class="row">
+          <div class="col-xs-8">
+            <div class="checkbox icheck">
+              <label> <input type="checkbox" id="saveUserId" /> 아이디 저장 </label>
+            </div>
+          </div>
+          <!-- /.col -->
+          <div class="col-xs-4">
+            <button type="button" onclick="login(event)" class="btn btn-primary btn-block btn-flat">
+              로그인
+            </button>
+          </div>
+          <!-- /.col -->
+        </div>
+      </form>
+      <div id="errorMessage"></div>
+      <div class="social-auth-links text-center">
+      </div>
+      <a href="/findpassword">비밀번호 찾기</a><br>
+      <a href="/createaccount" class="text-center">회원 가입</a>
+    </div>
+  </div>
+  <!-- /.login-box-body -->
+  </div>
+  <!-- /.login-box -->
+
+  <!-- jQuery 3 -->
+  <script src="/script-adminlte/bower_components/jquery/dist/jquery.min.js"></script>
+  <!-- Bootstrap 3.3.7 -->
+  <script src="/script-adminlte/bower_components/bootstrap/dist/js/bootstrap.min.js"></script>
+  <!-- iCheck -->
+  <script src="/script-adminlte/plugins/iCheck/icheck.min.js"></script>
+  <script>
+    $(function () {
+      $("input").iCheck({
+        checkboxClass: "icheckbox_square-blue",
+        radioClass: "iradio_square-blue",
+        increaseArea: "20%" /* optional */
+      });
+    });
+
+  </script>
+</body>
+
+</html>

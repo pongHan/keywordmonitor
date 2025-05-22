@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko" class="no-js">
+
+<head>
+  <%- include layout/js.ejs %>
+
+    <%- include layout/header.ejs %>
+      <style>
+      
+        .js #fouc {
+          display: none
+        }
+
+        .hidden {
+          display: none;
+        }
+
+        .center-text {
+          text-align: center;
+        }
+
+        th {
+          text-align: center;
+          background-color: #f9f9f9;
+        }
+
+        td {
+          text-align: center;
+        }
+      </style>
+      <script>
+        (function (H) { H.className = H.className.replace(/\bno-js\b/, 'js') })(document.documentElement)
+      </script>
+</head>
+
+<body class="hold-transition skin-blue sidebar-mini">
+  <div id="fouc">
+    <div class="wrapper">
+      <%- include layout/navigation.ejs %> <%- include layout/sidebar.ejs %>

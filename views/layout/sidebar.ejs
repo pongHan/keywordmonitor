@@ -1,0 +1,131 @@
+<!-- Left side column. contains the logo and sidebar -->
+<script type="text/javascript">
+  function guide() {
+    window.open("/guide", '_blank');
+  }
+</script>
+
+<style>
+  /* Sidebar Styles */
+  .main-sidebar {
+      height: 100vh; /* Full height */
+      overflow-y: auto; /* Enable vertical scrolling */
+      position: fixed; /* Make sidebar fixed */
+      width: 250px; /* Set the width of the sidebar */
+  }
+  .menu-content {
+      margin-left: 250px; /* Adjust this value based on the width of the sidebar */
+  }
+  .content-wrapper {
+          padding-left: 20px;
+      }
+</style>
+
+<aside class="main-sidebar bg-light">
+  <!-- sidebar: style can be found in sidebar.less -->
+  <section class="sidebar">
+      <!-- Sidebar user panel -->
+      <div class="user-panel">
+          <div class="pull-left image">
+              <img src="img/man-icon.jpg" class="img-circle" alt="User Image" />
+          </div>
+          <div class="pull-left info">
+              <% if (user) { %>
+                  <p><%= user.mb_name %></p>
+              <% } %>
+              <a href="#"><i class="fa fa-circle text-success"></i> Online</a>
+          </div>
+      </div>
+
+      <!-- sidebar menu: style can be found in sidebar.less -->
+      <ul class="sidebar-menu" data-widget="tree">
+          <li class="bg-success"></li>
+          <li class="treeview active">
+              <a href="#">
+                  <i class="fa fa-edit"></i> <span>AiCode</span>
+                  <span class="pull-right-container">
+                      <i class="fa fa-angle-left pull-right"></i>
+                  </span>
+              </a>
+              <ul class="treeview-menu">
+                  <li><a href="getAicode"><i class="fa fa-circle-o"></i> Playground</a></li>
+                  <li><a href="getProjects"><i class="fa fa-circle-o"></i> Project</a></li>
+                  <li><a href="manageAppmodel"><i class="fa fa-circle-o"></i> App Model</a></li>
+                  <li><a href="exploreModule"><i class="fa fa-circle-o"></i> Framework Generator</a></li>
+              </ul>
+          </li>
+      </ul>
+
+      <ul class="sidebar-menu" data-widget="tree">
+          <li class="treeview active">
+              <a href="#">
+                  <i class="fa fa-edit"></i> <span>AiQuery</span>
+                  <span class="pull-right-container">
+                      <i class="fa fa-angle-left pull-right"></i>
+                  </span>
+              </a>
+              <ul class="treeview-menu">
+                  <li><a href="getAiQuery"><i class="fa fa-circle-o"></i> Playground</a></li>
+                  <li><a href="/runQueryMenu"><i class="fa fa-circle-o"></i> 메뉴</a></li>
+                  <li><a href="/getAiquerys"><i class="fa fa-circle-o"></i> History</a></li>
+                  <li><a href="/getJobs"><i class="fa fa-circle-o"></i> 파일신청</a></li>
+                  <li><a href="javascript:guide()"><i class="fa fa-circle-o"></i> Guide</a></li>
+              </ul>
+          </li>
+      </ul>
+
+          <ul class="sidebar-menu" data-widget="tree" id="datamodelMenu">
+              <li class="treeview active">
+                  <a href="#">
+                      <i class="fa fa-database"></i> <span>AiMeta</span>
+                      <span class="pull-right-container">
+                          <i class="fa fa-angle-left pull-right"></i>
+                      </span>
+                  </a>
+                  <ul class="treeview-menu">
+                      <li id="getDbconfigsMenu"><a href="getDbconfigs"><i class="fa fa-circle-o"></i> DB세션</a></li>
+                      <li id="getDataModelsMenu"><a href="getDataModels"><i class="fa fa-circle-o"></i> 테이블 정보</a></li>
+                      <li id="manageMetarelationMenu"><a href="manageMetarelation"><i class="fa fa-circle-o"></i> 테이블 관계</a></li>
+                      <li><a href="getMetadomains"><i class="fa fa-circle-o"></i> 도메인</a></li>
+                      <li id="manageDataGrpMenu"><a href="manageDataGrp"><i class="fa fa-circle-o"></i> 데이터그룹</a></li>
+                  </ul>
+              </li>
+          </ul>
+
+          <% if(user.mb_level>2) { %>
+
+          <ul class="sidebar-menu" data-widget="tree" id="adminMenu">
+              <li class="treeview active">
+                  <a href="#">
+                      <i class="fa fa-building"></i> <span>Admin</span>
+                      <span class="pull-right-container">
+                          <i class="fa fa-angle-left pull-right"></i>
+                      </span>
+                  </a>
+                  <ul class="treeview-menu">
+                      <li id="getDbconfigsMenu"><a href="javascript:gotoMenu('getDbconfigs')"><i class="fa fa-circle-o"></i> 회사정보</a></li>
+                      <li id="manageMetarelationMenu"><a href="javascript:gotoMenu('manageMetarelation')"><i class="fa fa-circle-o"></i> 메뉴 권한</a></li>
+                      <li id="manageDataGrpMenu"><a href="manageDataGrp"><i class="fa fa-circle-o"></i> 사용자 관리</a></li>
+                  </ul>
+              </li>
+          </ul>
+      <% } %>
+
+      <ul class="sidebar-menu" data-widget="tree">
+          <li class="bg-success"></li>
+          <li class="treeview active">
+              <a href="#">
+                  <i class="fa fa-cog"></i> <span>설정</span>
+                  <span class="pull-right-container">
+                      <i class="fa fa-angle-left pull-right"></i>
+                  </span>
+              </a>
+              <ul class="treeview-menu">
+                  <li><a href="viewUser"><i class="fa fa-circle-o"></i> 내 정보</a></li>
+                  <li><a href="changepassword"><i class="fa fa-circle-o"></i> 비밀번호 변경</a></li>
+              </ul>
+          </li>
+      </ul>
+  </section>
+  <!-- /.sidebar -->
+</aside>
