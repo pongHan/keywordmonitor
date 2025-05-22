@@ -1,12 +1,20 @@
-const express = require('express');
-const router = express.Router();
-const kmDetectDataController = require('../controllers/km_detect.controller');
+const kmDetectController = require("../controllers/km_detect.controller.js");
+const router = require("express").Router();
+const userAuth = require('../middlewares/auth.js').userAuth;
 
-// CRUD Routes
-router.post('/', kmDetectDataController.create);
-router.get('/', kmDetectDataController.getAll);
-router.get('/:id', kmDetectDataController.getById);
-router.put('/:id', kmDetectDataController.update);
-router.delete('/:id', kmDetectDataController.delete);
+router.route('/getDetects')
+      .get(userAuth, kmDetectController.getDetects)
+      .post(userAuth, kmDetectController.postDetects)
+
+router.route('/getDetect')
+      .get(userAuth, kmDetectController.getDetect)
+router.route('/viewDetect')
+      .post(userAuth, kmDetectController.viewDetect)
+router.route('/deleteDetect/:detect_id')
+      .delete(userAuth, kmDetectController.deleteDetect)
+router.route('/listDetects')
+      .get(userAuth, kmDetectController.listDetects)
+router.route('/selectDetect/:detect_id')
+      .get(userAuth, kmDetectController.selectDetect)
 
 module.exports = router;

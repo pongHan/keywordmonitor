@@ -1,0 +1,183 @@
+<%- include('./user.head.ejs') %>
+
+<script type="text/javascript">
+  function update() {
+    $('input[type!="hidden"][required], textarea[required]').each(function () {
+      if (!$(this).val()) {
+        $(this).focus();
+        alert(`${$(this).attr("name")}은(는) 필수 입력 항목입니다.`);
+        return false;
+      }
+    });
+
+    event.preventDefault();
+    const formData = new URLSearchParams(new FormData(document.workForm));
+    fetch("/api/km_request/updateRequest", {
+      method: "PATCH",
+      mode: "same-origin",
+      credentials: "same-origin",
+      body: formData,
+    })
+    .then((res) => res.json())
+    .then((response) => {
+      if (response.status == 200) {
+        toastr.success("수정하였습니다");
+      } else {
+        toastr.warning(response.message);
+      }
+    })
+    .catch((error) => {
+      toastr.error("에러가 발생 하였습니다.");
+    });
+  }
+
+  function deleteCurrent(req_id) {
+    if (confirm("정말 삭제하시겠습니까?")) {
+      event.preventDefault();
+      fetch(`/api/deleteRequest/${req_id}`, {
+        method: "DELETE",
+        mode: "same-origin",
+        credentials: "same-origin",
+      })
+      .then((res) => res.json())
+      .then((response) => {
+        if (response.status == 200) {
+          alert("삭제하였습니다");
+          location.href = "getRequests";
+        } else {
+          toastr.error(response.message);
+        }
+      })
+      .catch((error) => {
+        toastr.error("에러가 발생 하였습니다.");
+      });
+    }
+  }
+
+  function list() {
+    var form = document.workForm;
+    form.method = "GET";
+    form.action = "getRequests";
+    form.submit();
+  }
+</script>
+
+<div class="content-wrapper">
+  <section class="content-header">
+    <h1>
+      요청 상세
+      <small></small>
+    </h1>
+    <ol class="breadcrumb">
+      <li>
+        <a href="#"><i class="fa fa-dashboard"></i> Home > </a>
+      </li>
+      <li class="active">요청 관리</li>
+    </ol>
+  </section>
+
+  <section class="content">
+    <div class="row">
+      <div class="box box-info" style="padding: 20px">
+        <div class="box-body">
+          <form name="workForm" method="post">
+            <input type="hidden" name="iPage" value="<%= rPage %>" />
+            <input type="hidden" name="req_id" value="<%= info.req_id %>" />
+
+            <div class="form-group">
+              <label>요청 ID</label>
+              <input type="text" readonly class="form-control" name="req_id" value="<%= info.req_id %>" />
+            </div>
+            <div class="form-group">
+              <label>회원 ID <span style="color:red;">*</span></label>
+              <input type="text" required class="form-control" name="req_mb_id" value="<%= info.req_mb_id %>" />
+            </div>
+            <div class="form-group">
+              <label>수신 이메일 <span style="color:red;">*</span></label>
+              <input type="text" required class="form-control" name="receiver_email" value="<%= info.receiver_email %>" />
+            </div>
+            <div class="form-group">
+              <label>상태</label>
+              <input type="text" class="form-control" name="req_status" value="<%= info.req_status %>" />
+            </div>
+            <div class="form-group">
+              <label>게시판명 <span style="color:red;">*</span></label>
+              <input type="text" required class="form-control" name="board_name" value="<%= info.board_name %>" />
+            </div>
+            <div class="form-group">
+              <label>게시판 타입 <span style="color:red;">*</span></label>
+              <input type="text" required class="form-control" name="board_type" value="<%= info.board_type %>" />
+            </div>
+            <div class="form-group">
+              <label>URL <span style="color:red;">*</span></label>
+              <input type="text" required class="form-control" name="post_url" value="<%= info.post_url %>" />
+            </div>
+            <div class="form-group">
+              <label>키워드 <span style="color:red;">*</span></label>
+              <input type="text" required class="form-control" name="keyword" value="<%= info.keyword %>" />
+            </div>
+            <div class="form-group">
+              <label>파서 설정</label>
+              <input type="text" class="form-control" name="parsing_config" value="<%= info.parsing_config %>" />
+            </div>
+            <div class="form-group">
+              <label>파싱 타입</label>
+              <input type="text" class="form-control" name="parsing_type" value="<%= info.parsing_type %>" />
+            </div>
+            <div class="form-group">
+              <label>시작일자 <span style="color:red;">*</span></label>
+              <input type="text" required class="form-control" name="start_date" value="<%= info.start_date %>" />
+            </div>
+            <div class="form-group">
+              <label>종료일자 <span style="color:red;">*</span></label>
+              <input type="text" required class="form-control" name="end_date" value="<%= info.end_date %>" />
+            </div>
+            <div class="form-group">
+              <label>Pay 타입 <span style="color:red;">*</span></label>
+              <input type="text" required class="form-control" name="pay_type" value="<%= info.pay_type %>" />
+            </div>
+            <div class="form-group">
+              <label>금액 <span style="color:red;">*</span></label>
+              <input type="number" required class="form-control" name="pay_amount" value="<%= info.pay_amount %>" />
+            </div>
+            <div class="form-group">
+              <label>등록일시</label>
+              <input type="text" readonly class="form-control" name="reg_datetime" value="<%= info.reg_datetime %>" />
+            </div>
+
+            <div class="form-group">
+              <div class="form-inline text-center">
+                <button
+                  type="button"
+                  class="pull-right btn btn-default"
+                  style="margin-right: 10px"
+                  onclick="update()"
+                >
+                  <i class="fa fa-save"></i> 저장
+                </button>
+                <button
+                  type="button"
+                  class="pull-right btn btn-default"
+                  style="margin-right: 5px"
+                  onclick="deleteCurrent('<%= info.req_id %>')"
+                >
+                  <i class="fa fa-trash"></i> 삭제
+                </button>
+                <button
+                  type="button"
+                  class="pull-right btn btn-default"
+                  style="margin-right: 5px"
+                  onclick="list()"
+                >
+                  <i class="fa fa-list"></i> 목록
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<%- include('./user.tail.ejs') %>

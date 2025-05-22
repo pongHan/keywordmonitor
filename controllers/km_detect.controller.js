@@ -1,73 +1,253 @@
-const KmDetectData = require('../models/km_detect.model.js');
-const { Op } = require('sequelize');
+//**********************************************/
+//   @Project : alphaBot (메타봇)
+//   @File : km_detect.controller.js
+//   @Desc : 감지 controller
+//   @Team : 
+//   @Author : modeller77@gmail.com
+//**********************************************/
 
-exports.create = async (req, res) => {
-  try {
-    const data = await KmDetectData.create(req.body);
-    res.status(201).json({ message: 'Record created successfully', data });
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating record', error: error.message });
+const { sequelize } = require("../models");
+const { QueryTypes } = require("sequelize");
+const db = require("../models");
+const km_detect = db.km_detect;
+const commonLib = require('../modules/common.lib');
+
+exports.getDetects = async (req, res, next) => {
+  const url = require('url');
+  const hostname = req.headers.host;
+  const pathname = url.parse(req.url).pathname;
+  const selfUrl = 'http://' + hostname + pathname;
+
+  const iPage = req.query.iPage;
+  const pWord = req.query.iWord;
+  var iWord = "";
+  if (pWord != undefined) iWord = pWord.toString().replace(",", "");
+
+  let whereSql = "WHERE 1";
+  let user_id = req.session.mb_id;
+  if (user_id !== "modeller77@gmail.com") {
+    whereSql = `WHERE req_mb_id = '${req.session.mb_id}'`;
   }
+  if (iWord) {
+    whereSql += ` AND (board_name LIKE '%${iWord}%' OR keyword LIKE '%${iWord}%' OR detect_title LIKE '%${iWord}%')`;
+  }
+
+  // 전체 글 갯수 획득
+  let query = `SELECT COUNT(*) as cnt FROM km_detect ${whereSql}`;
+  let [rsltOne] = await sequelize.query(query, { type: QueryTypes.SELECT }).catch(err => { console.error(err); });
+  const totalCount = rsltOne.cnt;
+
+  // 페이징 설정
+  let page = 1;
+  if (iPage > 0) page = iPage;
+  const pageRow = 12;
+  const pageScale = 12;
+  let fromRecord = (page - 1) * pageRow;
+
+  let paging = commonLib.getPaging(page, pageRow, pageScale, totalCount, selfUrl, `&iWord=${iWord}`);
+
+  query = `SELECT detect_id, req_id, req_mb_id, board_name, post_url, keyword, detect_datetime, detect_title, detect_content, detect_status, after_proc, proc_datetime
+             FROM km_detect ${whereSql}
+             ORDER BY detect_id DESC
+             LIMIT ${fromRecord}, ${pageRow}`;
+  sequelize.query(query, { type: QueryTypes.SELECT })
+    .then(rows => {
+      if (rows.length > 0) {
+        rows.map(elem => {
+          for (const [key, value] of Object.entries(elem)) {
+            if (typeof value === "object" && value !== undefined) {
+              elem[key] = value.toString('utf8');
+            }
+          }
+        });
+        res.render('detectlist', {
+          user: req.session, message: "", err: "", list: rows, rWord: iWord, rPage: iPage, paging: paging
+        });
+      } else {
+        res.render('detectlist', {
+          user: req.session, message: "no data found", err: "", list: rows, rWord: iWord, rPage: iPage, paging: paging
+        });
+      }
+    })
+    .catch(error => {
+      res.json({ status: '400', message: error.message });
+    });
 };
 
-exports.getAll = async (req, res) => {
-  try {
-    const { page = 1, limit = 10, keyword } = req.query;
-    const offset = (page - 1) * limit;
-    const where = keyword ? { keyword: { [Op.like]: `%${keyword}%` } } : {};
+exports.postDetects = async (req, res, next) => {
+  const inputVal = Object.values(req.body);
+  const iPage = req.query.iPage;
+  const pWord = req.query.iWord;
+  var iWord = "";
+  if (pWord != undefined) iWord = pWord.toString().replace(",", "");
 
-    const { count, rows } = await KmDetectData.findAndCountAll({
-      where,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-    });
-
-    res.json({
-      total: count,
-      pages: Math.ceil(count / limit),
-      data: rows,
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching records', error: error.message });
+  let whereSql = "WHERE 1";
+  let user_id = req.session.mb_id;
+  if (user_id !== "modeller77@gmail.com") {
+    whereSql = `WHERE req_mb_id = '${req.session.mb_id}'`;
   }
-};
+  if (iWord) {
+    whereSql += ` AND (board_name LIKE '%${iWord}%' OR keyword LIKE '%${iWord}%' OR detect_title LIKE '%${iWord}%')`;
+  }
 
-exports.getById = async (req, res) => {
-  try {
-    const data = await KmDetectData.findByPk(req.params.id);
-    if (!data) {
-      return res.status(404).json({ message: 'Record not found' });
+  // 페이징 설정
+  let page = 1;
+  if (iPage > 0) page = iPage;
+  const pageRow = 12;
+  const pageScale = 12;
+  let fromRecord = (page - 1) * pageRow;
+
+  let paging = commonLib.getPaging(page, pageRow, pageScale, totalCount, selfUrl, `&iWord=${iWord}`);
+
+  query = `SELECT detect_id, req_id, req_mb_id, board_name, post_url, keyword, detect_datetime, detect_title, detect_content, detect_status, after_proc, proc_datetime
+             FROM km_detect ${whereSql}
+             ORDER BY detect_id DESC
+             LIMIT ${fromRecord}, ${pageRow}`;
+  const rows = await sequelize.query(query, { type: QueryTypes.SELECT, raw: true }).catch(err => { console.error(err); });
+
+  rows.map(elem => {
+    for (const [key, value] of Object.entries(elem)) {
+      if (typeof value === "object" && value !== undefined) {
+        elem[key] = value.toString('utf8');
+      }
     }
-    res.json(data);
+  });
+
+  res.render('detectlist', {
+    message: "", err: "", list: rows, rWord: iWord, rPage: iPage, paging: paging, user: req.session
+  });
+};
+
+exports.getDetect = async (req, res, next) => {
+  let info = {
+    req_mb_id: req.session.mb_id,
+    detect_datetime: sequelize.fn("NOW")
+  };
+  res.render('detectform', { user: req.session, message: "", err: "", info: info });
+};
+
+exports.addDetect = async (req, res, next) => {
+  const inputVal = Object.values(req.body);
+  let info = {
+    req_id: req.body.req_id || 0,
+    req_mb_id: req.session.mb_id,
+    board_name: req.body.board_name,
+    post_url: req.body.post_url,
+    keyword: req.body.keyword,
+    detect_title: req.body.detect_title,
+    detect_content: req.body.detect_content,
+    detect_status: req.body.detect_status || 'open',
+    after_proc: req.body.after_proc || '',
+    proc_datetime: req.body.proc_datetime || '0000-00-00 00:00:00',
+    detect_datetime: sequelize.fn("NOW")
+  };
+
+  // 중복 체크 (req_mb_id와 post_url 기준)
+  const cnt = await km_detect.count({
+    where: {
+      req_mb_id: info.req_mb_id,
+      post_url: info.post_url
+    }
+  });
+  if (cnt > 0) {
+    res.json({ status: '400', message: '이미 등록된 요청 URL입니다' });
+    return;
+  }
+
+  const row = await km_detect.create(info).catch(err => { console.error(err); });
+  res.json({ status: '200', message: '등록하였습니다', info: row });
+};
+
+exports.viewDetect = async (req, res, next) => {
+  const detect_id = req.body.detect_id;
+  const iPage = req.body.iPage;
+  const iWord = req.body.iWord;
+
+  let query = `SELECT detect_id, req_id, req_mb_id, board_name, post_url, keyword, detect_datetime, detect_title, detect_content, detect_status, after_proc, proc_datetime
+                 FROM km_detect
+                WHERE detect_id = ${detect_id}`;
+  const row = await sequelize.query(query, { type: QueryTypes.SELECT, raw: true }).catch(err => { console.error(err); });
+  row.map(elem => {
+    for (const [key, value] of Object.entries(elem)) {
+      if (typeof value === "object" && value !== undefined) {
+        elem[key] = value.toString('utf8');
+      }
+    }
+  });
+
+  res.render('detectview', {
+    user: req.session, message: "", err: "", info: row[0], rid: detect_id, rPage: iPage, rWord: iWord
+  });
+};
+
+exports.updateDetect = async (req, res, next) => {
+  const detect_id = req.body.detect_id;
+  const iPage = req.body.iPage;
+  const iWord = req.body.iWord;
+  let info = {
+    req_id: req.body.req_id,
+    req_mb_id: req.body.req_mb_id,
+    board_name: req.body.board_name,
+    post_url: req.body.post_url,
+    keyword: req.body.keyword,
+    detect_title: req.body.detect_title,
+    detect_content: req.body.detect_content,
+    detect_status: req.body.detect_status,
+    after_proc: req.body.after_proc,
+    proc_datetime: req.body.proc_datetime
+  };
+
+  const result = await km_detect.update(
+    info,
+    { where: { detect_id: detect_id } }
+  ).catch(err => { console.error(err); });
+
+  res.json({ status: '200', message: '수정하였습니다' });
+};
+
+exports.deleteDetect = async (req, res) => {
+  try {
+    const data = await km_detect.destroy({
+      where: { detect_id: req.params.detect_id }
+    });
+    res.json({ status: '200', message: '삭제하였습니다' });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching record', error: error.message });
+    res.json({ status: '400', message: '네트워크 에러입니다', error: { message: error.message } });
   }
 };
 
-exports.update = async (req, res) => {
-  try {
-    const [updated] = await KmDetectData.update(req.body, {
-      where: { detect_id: req.params.id },
-    });
-    if (!updated) {
-      return res.status(404).json({ message: 'Record not found' });
+exports.listDetects = async (req, res, next) => {
+  let whereSql = "WHERE 1";
+
+  // 전체 글 갯수 획득
+  query = `SELECT COUNT(*) as cnt FROM km_detect ${whereSql}`;
+  let [rsltOne] = await sequelize.query(query, { type: QueryTypes.SELECT }).catch(err => { console.error(err); });
+  const totalCount = rsltOne.cnt;
+
+  query = `SELECT detect_id, board_name, keyword
+             FROM km_detect ${whereSql}
+             ORDER BY detect_id DESC`;
+  const rows = await sequelize.query(query, { type: QueryTypes.SELECT, raw: true }).catch(err => { console.error(err); });
+  rows.map(elem => {
+    for (const [key, value] of Object.entries(elem)) {
+      if (typeof value === "object" && value !== undefined) {
+        elem[key] = value.toString('utf8');
+      }
     }
-    res.json({ message: 'Record updated successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating record', error: error.message });
-  }
+  });
+  res.json(rows);
 };
 
-exports.delete = async (req, res) => {
-  try {
-    const deleted = await KmDetectData.destroy({
-      where: { detect_id: req.params.id },
-    });
-    if (!deleted) {
-      return res.status(404).json({ message: 'Record not found' });
+exports.selectDetect = async (req, res, next) => {
+  const detect_id = req.params.detect_id;
+  const query = `SELECT * FROM km_detect WHERE detect_id = ${detect_id}`;
+  const rows = await sequelize.query(query, { type: QueryTypes.SELECT, raw: true }).catch(err => { console.error(err); });
+  rows.map(elem => {
+    for (const [key, value] of Object.entries(elem)) {
+      if (typeof value === "object" && value !== undefined) {
+        elem[key] = value.toString('utf8');
+      }
     }
-    res.json({ message: 'Record deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting record', error: error.message });
-  }
+  });
+  res.json(rows[0]);
 };

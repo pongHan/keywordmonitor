@@ -1,0 +1,198 @@
+<%- include('./user.head.ejs') %>
+
+<% var iCdTp="" ; %>
+
+<script type="text/javascript">
+  $(function () {
+      $("#iCbAll").click(function () {
+          if ($("#iCbAll").prop("checked")) {
+            $("input[id=iCbOne]").prop("checked", true);
+          } else {
+            $("input[id=iCbOne]").prop("checked", false);
+          }
+        });
+    });
+
+  function search() {
+    console.log("search..");
+    var form = document.workForm;
+    form.iPage.value = 1;
+    form.method = "GET";
+    form.action = "getRequests";
+    form.submit();
+  }
+
+  function view(req_id) {
+    var form = document.workForm;
+    form.req_id.value = req_id;
+    form.action = "viewRequest";
+    form.submit();
+  }
+
+  function create() {
+    var form = document.workForm;
+    form.action = "getRequest";
+    form.method = "GET";
+    form.submit();
+  }
+
+  function procDeleteMulti() {
+    if (confirm("정말 삭제하시겠습니까?") == true) {
+      var form = document.workForm;
+      var cbOneArr = document.getElementsByName("iCbOne");
+      var cbStr = "";
+      var chkCnt = 0;
+      for (var i = 0; i < cbOneArr.length; i++) {
+        if (cbOneArr[i].checked) {
+          chkCnt++;
+          cbStr += cbOneArr[i].value + "|";
+          console.log(cbOneArr[i].value);
+          fetch("/api/deleteRequest/" + cbOneArr[i].value, {
+              method: "DELETE",
+              mode: "same-origin",
+              credentials: "same-origin",
+            })
+          .then((response) => {
+              console.log(response.message);
+            })
+          .catch((error) => {
+              console.log(error);
+            });
+        }
+      }
+
+      if (chkCnt > 0) {
+        location.reload();
+        toastr.success("삭제하였습니다.");
+      } else {
+        toastr.warning("삭제할 항목을 선택해주세요.");
+      }
+    }
+  }
+
+  function submitSearch() {
+    document.fsearch.submit();
+  }
+</script>
+
+<div class="content-wrapper">
+  <section class="content-header">
+    <h1>
+      요청 목록
+      <small></small>
+    </h1>
+    <ol class="breadcrumb">
+      <li>
+        <a href="#"><i class="fa fa-dashboard"></i> Home > </a>
+      </li>
+      <li class="active">요청 관리</li>
+    </ol>
+  </section>
+
+  <section class="content">
+    <div class="row">
+      <form name="workForm" method="post" action="">
+        <input type="hidden" name="iPage" value="<%= rPage %>">
+        <div class="box box-info">
+          <div class="box-body">
+            <div class="row pull-right">
+              <div class="box-body">
+                <input type="hidden" id="iPage" name="iPage" value="<%= rPage %>">
+                <input type="hidden" id="req_id" name="req_id" value="">
+                <div class="col-md-4">
+                </div>
+
+                <!-- 검색어 입력란과 검색 버튼 -->
+                <div class="col-md-4">
+                  <div class="form-inline">
+                    <div class="input-group">
+                      <input type='text' class="form-control" id="iWord" name="iWord" value="<%= rWord %>"
+                        placeholder="게시판명 또는 키워드로 검색" size="100" />
+                      <span class="input-group-btn">
+                        <a href="#" onclick="submitSearch()" class="btn btn-info btn-md">검색</a>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-4 text-right">
+                  <button type="button" onclick="create()" class="btn btn-default" id="addBtn"><i
+                      class="fa fa-plus"></i> 추가</button>
+                  <button type="button" onclick="procDeleteMulti()" class="btn btn-default" id="deleteBtn"><i
+                      class="fa fa-trash"></i> 삭제</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="box-body">
+              <table class="table table-bordered table-hover">
+                <thead>
+                  <tr>
+                    <th>
+                      <input type="checkbox" name="iCbAll" id="iCbAll" class="cb-middle" />
+                    </th>
+                    <th>요청 ID</th>
+                    <th>회원 ID</th>
+                    <th>상태</th>
+                    <th>게시판명</th>
+                    <th>게시판 타입</th>
+                    <th>키워드</th>
+                    <th>시작일자</th>
+                    <th>종료일자</th>
+                    
+                  </tr>
+                </thead>
+                <% if(list.length) { %>
+                  <tbody>
+                    <% for(var i in list) { %>
+                      <tr>
+                        <td>
+                          <input type="checkbox" value="<%= list[i].req_id %>" name="iCbOne" id="iCbOne"
+                            class="cb-middle" />
+                        </td>
+                        <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
+                          <%= list[i].req_id %>
+                        </td>
+                        <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
+                          <%= list[i].req_mb_id %>
+                        </td>
+                        <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
+                          <%= list[i].req_status %>
+                        </td>
+                        <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
+                          <%= list[i].board_name %>
+                        </td>
+                        <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
+                          <%= list[i].board_type %>
+                        </td>
+                        <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
+                          <%= list[i].keyword %>
+                        </td>
+                        <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
+                          <%= list[i].start_date %>
+                        </td>
+                        <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
+                          <%= list[i].end_date %>
+                        </td>
+                      </tr>
+                    <% } %>
+                  </tbody>
+                <% } else { %>
+                  <tbody>
+                    <tr>
+                      <td class="text-center" colspan="16">해당 자료가 없습니다</td>
+                    </tr>
+                  </tbody>
+                <% } %>
+              </table>
+            </div>
+
+            <div class="box-footer clearfix"><%- paging %></div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
+
+<%- include('./user.tail.ejs') %>

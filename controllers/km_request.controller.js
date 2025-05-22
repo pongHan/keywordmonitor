@@ -26,9 +26,10 @@ exports.getRequests = async (req, res, next) => {
 
   let whereSql = "WHERE 1";
   let user_id = req.session.mb_id;
-  if (user_id !== "modeller77@gmail.com") {
+  /* if (user_id !== "modeller77@gmail.com") {
     whereSql = `WHERE req_mb_id = '${req.session.mb_id}'`;
   }
+   */
   if (iWord) {
     whereSql += ` AND (board_name LIKE '%${iWord}%' OR keyword LIKE '%${iWord}%')`;
   }
