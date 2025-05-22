@@ -1,7 +1,7 @@
 TRUNCATE km_detect;
 
 
-CREATE TABLE `km_dekm_detecttect` (
+CREATE TABLE `km_detect` (
 	`detect_id` INT(8) NOT NULL COMMENT 'ID' AUTO_INCREMENT,
 	`req_id` INT(8) NOT  NULL DEFAULT 0 COMMENT '요청ID',
 	`req_mb_id` VARCHAR(50) NOT NULL DEFAULT '' COMMENT '회원ID' COLLATE 'utf8_general_ci',

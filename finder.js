@@ -1,11 +1,31 @@
-require('dotenv').config();
+//require('dotenv').config();
+const dotenv = require('dotenv');
+const fs = require('fs');
+const path = require('path');
+
+// NODE_ENV에 따라 적절한 .env 파일 로드
+const env = process.env.NODE_ENV || 'dev';
+const envPath = path.resolve(__dirname, `.env.${env}`);
+
+// 해당 환경 파일이 존재하면 로딩
+if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    console.log(`✅ Loaded .env.${env}`);
+} else {
+    dotenv.config({ path: path.resolve(__dirname, '.env') });
+    console.log(`⚠️ .env.${env} not found. Loaded default .env`);
+}
+
+// 테스트 출력
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('DB_URL:', process.env.DB_URL);
+
+
 const cheerio = require('cheerio');
 const nodemailer = require('nodemailer');
-const fs = require('fs').promises;
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const Tesseract = require('tesseract.js');
-const path = require('path');
 const dayjs = require('dayjs');
 const mysql = require('mysql2/promise');
 const {
@@ -333,7 +353,7 @@ async function crawlWithPuppeteer(config) {
         // 중복되지 않은 게시물이 있을 경우에만 이메일 발송
         if (nonDuplicatePosts.length > 0) {
             await sendEmail({
-                subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+                subject: `[알림] ${board_name} 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
                 posts: nonDuplicatePosts,
                 receiverEmail: receiver_email,
                 receiverName: receiver_name,
