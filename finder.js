@@ -3,24 +3,6 @@ const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
 
-// NODE_ENV에 따라 적절한 .env 파일 로드
-const env = process.env.NODE_ENV || 'dev';
-const envPath = path.resolve(__dirname, `.env.${env}`);
-
-// 해당 환경 파일이 존재하면 로딩
-if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath });
-    console.log(`✅ Loaded .env.${env}`);
-} else {
-    dotenv.config({ path: path.resolve(__dirname, '.env') });
-    console.log(`⚠️ .env.${env} not found. Loaded default .env`);
-}
-
-// 테스트 출력
-console.log('NODE_ENV:', process.env.NODE_ENV);
-console.log('DB_URL:', process.env.DB_URL);
-
-
 const cheerio = require('cheerio');
 const nodemailer = require('nodemailer');
 const puppeteer = require('puppeteer-extra');
@@ -47,19 +29,20 @@ const {
 // 스텔스 플러그인 등록
 puppeteer.use(StealthPlugin());
 
+const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, PORT, PASSPORT_CLIENT_ID, PASSPORT_CLIENT_SECRET } = require("./config.js");
 // 환경 변수 로드
-const SENDER_EMAIL = process.env.SENDER_EMAIL;
-const SENDER_PASSWORD = process.env.SENDER_PASSWORD;
-const SMTP_SERVER = process.env.SMTP_SERVER;
-const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10);
+// const SENDER_EMAIL = process.env.SENDER_EMAIL;
+// const SENDER_PASSWORD = process.env.SENDER_PASSWORD;
+// const SMTP_SERVER = process.env.SMTP_SERVER;
+// const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10);
 
 // Database connection pool setup for MySQL
 const db = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT || 3306,
+    host: DB_HOST,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    database: DB_NAME,
+    port: DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
