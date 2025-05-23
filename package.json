@@ -4,8 +4,10 @@
   "description": "",
   "main": "finder.js",
   "scripts": {
-    "start:dev": "cross-env NODE_ENV=dev node finder.js",
-    "start:prod": "cross-env NODE_ENV=prod node finder.js"
+    "start:dev-finder": "cross-env NODE_ENV=development node finder.js",
+    "start:prod-finder": "cross-env NODE_ENV=production node finder.js",
+    "start:dev-server": "NODE_ENV=development pm2 start bin/www --node-args=\"-r dotenv/config dotenv_config_path=.env.dev\"",
+    "start:prod-server": "NODE_ENV=production pm2 start bin/www --node-args=\"-r dotenv/config dotenv_config_path=.env.prod\""
   },
   "author": "AlphaLab",
   "license": "ISC",
