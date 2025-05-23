@@ -15,9 +15,6 @@ const dayjs = require('dayjs');
 const { Op } = require('sequelize');
 const puppeteer = require('puppeteer');
 
-
-
-
 exports.screenshotDetection = async (req, res) => {
   const { detect_id } = req.params;
   console.log("screenshotDetection: detect_id=" + detect_id);
