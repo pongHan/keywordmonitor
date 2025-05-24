@@ -1,6 +1,6 @@
 //require('dotenv').config();
 const dotenv = require('dotenv');
-const fs = require('fs').promises;
+const fs = require('fs');
 const path = require('path');
 
 // NODE_ENV에 따라 적절한 .env 파일 로드
@@ -8,8 +8,13 @@ const env = process.env.NODE_ENV || 'dev';
 const envPath = path.resolve(__dirname, `.env.${env}`);
 
 // 해당 환경 파일이 존재하면 로딩
-dotenv.config({ path: envPath });
-console.log(`✅ Loaded .env.${env}`);
+if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    console.log(`✅ Loaded .env.${env}`);
+} else {
+    dotenv.config({ path: path.resolve(__dirname, '.env') });
+    console.log(`⚠️ .env.${env} not found. Loaded default .env`);
+}
 
 // 테스트 출력
 console.log('NODE_ENV:', process.env.NODE_ENV);
@@ -135,7 +140,7 @@ async function loadConfigFromDB() {
 }
 
 // 중복 게시물 체크
-async function checkDuplicatePost(config, post) {
+async function checkDuplicatePost(config, detectedTitle, timeWindowMinutes = 10) {
     let connection;
     try {
         connection = await db.getConnection();
@@ -145,19 +150,20 @@ async function checkDuplicatePost(config, post) {
             WHERE req_id = ?
             AND post_url = ?
             AND post_title = ?
+            AND detect_datetime >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
             LIMIT 1
         `;
         const checkValues = [
             config.id,
-            post.link,
-            post.title
+            config.url,
+            detectedTitle,
+            timeWindowMinutes
         ];
         const [existing] = await connection.query(checkQuery, checkValues);
         if (existing.length > 0) {
-            log('info', `Duplicate found for req_id=${config.id}, post_url=${config.url}, post_title=${post.title}`);
+            log('info', `Duplicate found for req_id=${config.id}, post_url=${config.url}, post_title=${detectedTitle} within last ${timeWindowMinutes} minutes`);
             return { isDuplicate: true, id: existing[0].detect_id };
         }
-        log('info', `new post for req_id=${config.id}, post_url=${config.url}, post_title=${post.title}`);
         return { isDuplicate: false };
     } catch (error) {
         log('error', `Error in checkDuplicatePost: ${error.message}`);
@@ -204,11 +210,20 @@ async function insertNotificationData(config, post) {
 }
 
 // OCR 실행
+
 async function runOCR(imagePath) {
     log('info', '🔍 Running OCR...');
-    const { data: { text } } = await Tesseract.recognize(imagePath, 'kor+eng');
-    return text;
+    try {
+        const { data: { text } } = await Tesseract.recognize(imagePath, 'kor+eng', {
+            logger: m => log('debug', `[Tesseract] ${m.status} - ${m.progress}`)
+        });
+        return text;
+    } catch (error) {
+        log('error', `OCR error: ${error.message}`);
+        throw error;
+    }
 }
+
 
 // 공통 이메일 전송 함수 (HTML 테이블 형식)
 async function sendEmail({ subject, posts, receiverEmail, receiverName }) {
@@ -368,7 +383,7 @@ async function crawlWithPuppeteer(config) {
     const nonDuplicatePosts = [];
     if (allPostsToNotify.length > 0) {
         for (const post of allPostsToNotify) {
-            const duplicateCheck = await checkDuplicatePost(config, post);
+            const duplicateCheck = await checkDuplicatePost(config, post.title);
             if (!duplicateCheck.isDuplicate) {
                 await insertNotificationData(config, post);
                 nonDuplicatePosts.push(post);
@@ -405,7 +420,7 @@ async function fetchBoard(config) {
         await captureScreenshot(modifiedUrl, screenshotPath);
         log('info', '🔍 Running OCR...');
         const ocrText = await runOCR(screenshotPath);
-        log('debug', '📄 Extracted Text:\n' + ocrText);
+        log('debug', '📄 Extracted Text:\n' + ocrText.substring(0, 100) + '...');
         const lines = ocrText
             .split('\n')
             .map((line) => line.trim())
@@ -441,24 +456,25 @@ async function fetchBoard(config) {
                 }
             });
 
-            // 중복 체크 및 삽입
             const nonDuplicatePosts = [];
             if (postsToNotify.length > 0) {
                 for (const post of postsToNotify) {
-                    const duplicateCheck = await checkDuplicatePost(config, post);
+                    log('info', `Checking duplicate for post: ${post.title}`);
+                    const duplicateCheck = await checkDuplicatePost(config, post.title);
                     if (!duplicateCheck.isDuplicate) {
+                        log('info', `Inserting notification data for post: ${post.title}`);
                         await insertNotificationData(config, post);
                         nonDuplicatePosts.push(post);
                     }
                 }
-                // 중복되지 않은 게시물이 있을 경우에만 이메일 발송
                 if (nonDuplicatePosts.length > 0) {
-                    // await sendEmail({
-                    //     subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
-                    //     posts: nonDuplicatePosts,
-                    //     receiverEmail: receiver_email,
-                    //     receiverName: receiver_name,
-                    // });
+                    log('info', `Sending email for ${nonDuplicatePosts.length} posts`);
+                    await sendEmail({
+                        subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+                        posts: nonDuplicatePosts,
+                        receiverEmail: receiver_email,
+                        receiverName: receiver_name,
+                    });
                 } else {
                     log('info', 'No new posts to notify after duplicate check.');
                 }
@@ -469,21 +485,147 @@ async function fetchBoard(config) {
         log('debug', `Fetched ${result.length} posts from ${modifiedUrl} for keywords ${keywords.join(', ')}: ${JSON.stringify(result)}`);
         return result;
     } else {
+        log('info', 'Falling back to crawlWithPuppeteer');
         return await crawlWithPuppeteer(config);
     }
 }
 
+
+async function fetchBoardNavigation(config) {
+    const { url, keywords, board_type, board_name, parsing_config, receiver_email, receiver_name } = config;
+    log('info', `>>>> ${board_name} ${board_type} ${keywords.join(', ')}`);
+    const modifiedUrl = url.replace(/\$keyword/i, encodeURIComponent(keywords[0]));
+    log('info', `🌐 Fetching board: ${modifiedUrl}`);
+    const parsingType = parsing_config.parsing_type || 'text';
+
+    if (parsingType === 'ocr') {
+        log('info', `Creating screenshot directory: ${SCREENSHOT_DIR}`);
+        await fs.mkdir(SCREENSHOT_DIR, { recursive: true });
+        log('info', 'Launching Puppeteer browser');
+        const browser = await puppeteer.launch({ headless: true });
+        const page = await browser.newPage();
+        const maxPages = 5;
+        const postsToNotify = [];
+        const result = [];
+
+        try {
+            log('info', `Navigating to ${modifiedUrl}`);
+            await page.goto(modifiedUrl, { waitUntil: 'networkidle2', timeout: 20000 });
+            log('info', 'Navigation completed');
+
+            for (let currentPage = 1; currentPage <= maxPages; currentPage++) {
+                const screenshotPath = path.join(SCREENSHOT_DIR, `${board_name}_page_${currentPage}.png`);
+                log('info', `📸 Capturing page ${currentPage} to ${screenshotPath}`);
+                await page.screenshot({ path: screenshotPath, fullPage: true });
+                log('info', 'Screenshot captured');
+
+                log('info', `🔍 Running OCR on page ${currentPage}`);
+                const ocrText = await runOCR(screenshotPath);
+                log('debug', `OCR result: ${ocrText.substring(0, 100)}...`);
+                const lines = ocrText.split('\n').map(l => l.trim()).filter(Boolean);
+
+                for (const [index, line] of lines.entries()) {
+                    const normalizedLine = line.toLowerCase().replace(/\s+/g, ' ');
+                    for (const keyword of keywords) {
+                        if (normalizedLine.includes(keyword)) {
+                            const formattedDate = parseDate(line);
+                            const postDate = formattedDate ? dayjs(formattedDate) : null;
+                            const isRecent = postDate ? dayjs().diff(postDate, 'day') <= 2 : false;
+
+                            const post = {
+                                title: line,
+                                link: `${modifiedUrl}#line_${index}`,
+                                date: postDate?.format('YYYY-MM-DD') || null,
+                                keyword
+                            };
+
+                            result.push(post);
+                            log('info', `Checking duplicate for post: ${post.title}`);
+                            const duplicateCheck = await checkDuplicatePost(config, post.title);
+                            if (!duplicateCheck.isDuplicate) {
+                                log('info', `Inserting notification data for post: ${post.title}`);
+                                await insertNotificationData(config, post);
+                                if (isRecent || !post.date) {
+                                    log('info', `📬 Found recent or undated post: ${post.title} (keyword: ${keyword})`);
+                                    postsToNotify.push(post);
+                                } else {
+                                    log('info', `⏳ Post not recent: ${post.title} (date: ${post.date}, keyword: ${keyword})`);
+                                }
+                            } else {
+                                log('info', `🚫 Duplicate post skipped: ${post.title}`);
+                            }
+
+                            break;
+                        }
+                    }
+                }
+
+                log('info', 'Cleaning up screenshots');
+                await cleanupScreenshots();
+
+                const nextPageSelector = parsing_config.next_page_selector || `a[aria-label="다음"]`;
+                try {
+                    const hasNext = await page.$(nextPageSelector);
+                    if (hasNext && currentPage < maxPages) {
+                        log('info', `➡️ Moving to page ${currentPage + 1}...`);
+                        await Promise.all([
+                            page.click(nextPageSelector),
+                            page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 20000 })
+                        ]);
+                        log('info', 'Navigation to next page completed');
+                    } else {
+                        log('info', `📄 Last page reached (${currentPage})`);
+                        break;
+                    }
+                } catch (error) {
+                    log('warning', `Navigation error on page ${currentPage}: ${error.message}`);
+                    break;
+                }
+            }
+        } catch (error) {
+            log('error', `Error in fetchBoardNavigation: ${error.message}`);
+            throw error; // Rethrow to catch in main
+        } finally {
+            log('info', 'Closing browser');
+            await browser.close();
+        }
+
+        if (postsToNotify.length > 0) {
+            log('info', `📬 Notifying ${postsToNotify.length} posts`);
+            await sendEmail({
+                subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+                posts: postsToNotify,
+                receiverEmail: receiver_email,
+                receiverName: receiver_name,
+            });
+        } else {
+            log('info', 'No new posts to notify after duplicate check.');
+        }
+
+        log('debug', `Fetched ${result.length} posts from ${modifiedUrl} for keywords ${keywords.join(', ')}: ${JSON.stringify(result)}`);
+        return result;
+    } else {
+        log('info', 'Falling back to crawlWithPuppeteer');
+        return await crawlWithPuppeteer(config);
+    }
+}
+
+
 // 메인 함수
 async function main() {
+    log('info', 'Starting main function');
     let seenPosts = new Set();
     if (RESET_SEEN_POSTS) {
         seenPosts.clear();
         log('info', 'seenPosts cleared for debugging');
     }
     async function checkBoards() {
+        log('info', 'Loading configs from DB');
         const configs = await loadConfigFromDB();
+        log('info', `Processing ${configs.length} configs`);
         const today = dayjs();
         for (const config of configs) {
+            log('info', `Validating config ID: ${config.id}`);
             const { id, receiver_name, receiver_email, url, keywords, board_type, board_name, status, start_date, end_date, parsing_config } = config;
             if (!receiver_name || !receiver_email || !url || !keywords.length || !board_type || !board_name || !status || !start_date || !end_date || !parsing_config) {
                 log('error', `Invalid config entry (ID: ${id}): ${JSON.stringify(config)}`);
@@ -506,13 +648,24 @@ async function main() {
             log('info', `Processing board ${board_name}: Status is "open" and today (${today.format('YYYY-MM-DD')}) is between ${start_date} and ${end_date}`);
             const normalizedKeywords = keywords.map(k => k.toLowerCase().replace(/\s+/g, ' '));
             log('info', `keywords=${normalizedKeywords.join(', ')}`);
-            await fetchBoard({ ...config, keywords: normalizedKeywords });
+            log('info', `Calling fetchBoardNavigation for board ${board_name}`);
+            try {
+                await fetchBoard({ ...config, keywords: normalizedKeywords });
+                //await fetchBoardNavigation({ ...config, keywords: normalizedKeywords });
+            } catch (error) {
+                log('error', `Error in fetchBoardNavigation for board ${board_name}: ${error.message}`);
+            }
         }
     }
-    await checkBoards();
+    log('info', 'Running checkBoards');
+    try {
+        await checkBoards();
+    } catch (error) {
+        log('error', `Error in checkBoards: ${error.message}`);
+    }
+    log('info', `Setting interval with CHECK_INTERVAL=${CHECK_INTERVAL}`);
     setInterval(checkBoards, CHECK_INTERVAL);
 }
 
 // 실행
 main().catch((error) => log('error', `Main error: ${error.message}`));
-
