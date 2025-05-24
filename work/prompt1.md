@@ -60,6 +60,18 @@ ENGINE=MyISAM
 AUTO_INCREMENT=6
 ;
 
+CREATE TABLE `km_finder_run` (
+	`run_id` INT(11) NOT NULL AUTO_INCREMENT COMMENT '로그ID',
+	`run_date` VARCHAR(10) NOT NULL DEFAULT '' COMMENT '날짜' COLLATE 'utf8_general_ci',
+	`run_cnt` INT(8) NOT NULL COMMENT '실행횟수',
+	`run_datetime` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '등록일시',
+	PRIMARY KEY (`run_id`) USING BTREE
+)
+COMMENT='파인터실행모니터'
+COLLATE='utf8_general_ci'
+ENGINE=MyISAM
+AUTO_INCREMENT=1
+;
 2. make model, controller, rotuter for km_request table
 
 	<sample model>

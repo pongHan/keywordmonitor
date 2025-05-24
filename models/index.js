@@ -33,5 +33,6 @@ db.org = require("./org.model.js")(sequelize, Sequelize.DataTypes);
 db.km_request = require("./km_request.model.js")(sequelize, Sequelize.DataTypes);
 db.km_detect = require("./km_detect.model.js")(sequelize, Sequelize.DataTypes);
 db.km_job_log = require("./km_job_log.model.js")(sequelize, Sequelize.DataTypes);
+db.km_finder_run = require("./km_finder_run.model.js")(sequelize, Sequelize.DataTypes);
 
 module.exports = db;

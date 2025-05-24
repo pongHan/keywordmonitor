@@ -243,11 +243,12 @@ async function logToJobLog(config, result, nonDuplicatePosts, error = null) {
             INSERT INTO km_job_log (
                 req_id,
                 board_name,
+                check_interval,
                 status,
                 result,
                 post_cnt,
                 new_cnt
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         const status = error ? 'error' : 'success';
         const resultMessage = error
@@ -256,6 +257,7 @@ async function logToJobLog(config, result, nonDuplicatePosts, error = null) {
         const insertValues = [
             config.id,
             config.board_name,
+            config.check_interval,
             status,
             resultMessage,
             result.length,
@@ -265,6 +267,54 @@ async function logToJobLog(config, result, nonDuplicatePosts, error = null) {
         log('info', `Logged to km_job_log with log_id: ${insertResult.insertId} for req_id: ${config.id}`);
     } catch (dbError) {
         log('error', `Error logging to km_job_log for req_id ${config.id}: ${dbError.message}`);
+    } finally {
+        if (connection) connection.release();
+    }
+}
+
+// km_finder_run에 로그 삽입/업데이트
+async function logToFinderRun() {
+    let connection;
+    try {
+        connection = await db.getConnection();
+        const today = dayjs().format('YYYY-MM-DD');
+        
+        // 자정(0시 0분 0초) 설정
+        const midnight = dayjs().startOf('day'); // 오늘 자정
+        const now = dayjs();
+        const elapsedMinutes = now.diff(midnight, 'minute'); // 자정부터 현재까지의 경과 시간(분)
+
+        // 오늘 날짜의 행 확인
+        const checkQuery = `
+            SELECT run_id, run_cnt
+            FROM km_finder_run
+            WHERE run_date = ?
+            LIMIT 1
+        `;
+        const [rows] = await connection.query(checkQuery, [today]);
+
+        if (rows.length > 0) {
+            // 행이 존재하면 run_cnt 증가, elapsed 업데이트, run_datetime 갱신
+            const run_id = rows[0].run_id;
+            const newRunCnt = rows[0].run_cnt + 1;
+            const updateQuery = `
+                UPDATE km_finder_run
+                SET run_cnt = ?, elapsed = ?, run_datetime = NOW()
+                WHERE run_id = ?
+            `;
+            await connection.query(updateQuery, [newRunCnt, elapsedMinutes, run_id]);
+            log('info', `Updated km_finder_run: run_id=${run_id}, run_date=${today}, run_cnt=${newRunCnt}, elapsed=${elapsedMinutes} minutes`);
+        } else {
+            // 행이 없으면 새 행 삽입
+            const insertQuery = `
+                INSERT INTO km_finder_run (run_date, run_cnt, run_datetime, elapsed)
+                VALUES (?, 1, NOW(), ?)
+            `;
+            const [result] = await connection.query(insertQuery, [today, elapsedMinutes]);
+            log('info', `Inserted into km_finder_run: run_id=${result.insertId}, run_date=${today}, run_cnt=1, elapsed=${elapsedMinutes} minutes`);
+        }
+    } catch (error) {
+        log('error', `Error in logToFinderRun: ${error.message}`);
     } finally {
         if (connection) connection.release();
     }
@@ -574,7 +624,7 @@ async function main() {
         const configs = await loadConfigFromDB();
         const today = dayjs();
         for (const config of configs) {
-            const { id, receiver_name, receiver_email, url, keywords,  board_type, board_name, status, start_date, end_date, parsing_config, check_interval } = config;
+            const { id, receiver_name, receiver_email, url, keywords, board_type, board_name, status, start_date, end_date, parsing_config, check_interval } = config;
             if (!receiver_name || !receiver_email || !url || !keywords.length || !board_type || !board_name || !status || !start_date || !end_date || !parsing_config) {
                 log('error', `Invalid config entry (ID: ${id}): ${JSON.stringify(config)}`);
                 continue;
@@ -633,6 +683,9 @@ async function main() {
                 log('error', `Error processing board ${board_name}: ${error.message}`);
             }
         }
+
+        // checkBoards 실행 후 km_finder_run에 로그 추가/업데이트
+        await logToFinderRun();
     }
     try {
         await checkBoards();
