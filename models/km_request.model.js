@@ -69,6 +69,12 @@ module.exports = (sequelize, DataTypes) => {
           defaultValue: '',
           get() { return this.getDataValue('parsing_type').toString('utf8'); }
         },
+        check_interval: {
+          type: DataTypes.STRING(20),
+          allowNull: false,
+          defaultValue: '',
+          get() { return this.getDataValue('check_interval').toString('utf8'); }
+        },
         start_date: {
           type: DataTypes.DATE,
           allowNull: false,

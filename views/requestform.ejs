@@ -19,6 +19,7 @@
     $("#keyword").val("");
     $("#parsing_config").val("");
     $("#parsing_type").val("");
+    $("#check_interval").val("");
     $("#start_date").val("");
     $("#end_date").val("");
     $("#email_send_yn").val("");
@@ -36,6 +37,7 @@
     $("#keyword").val("입주자");
     $("#parsing_config").val(ocr_parsing_config);
     $("#parsing_type").val("ocr");
+    $("#check_interval").val("1d");
     $("#start_date").val("2025-01-01");
     $("#end_date").val("2026-12-31");
     $("#email_send_yn").val("Y");
@@ -145,6 +147,14 @@
             <div class="form-group">
               <label>키워드 <span style="color:red;">*</span></label>
               <input type="text" required class="form-control" id="keyword" name="keyword" value="<%= info.keyword || '' %>" />
+            </div>
+            <div class="form-group">
+              <label>체크주기</label>
+              <select class="form-control" id="check_interval" name="check_interval">
+                <option value="1d" <%= info.check_interval === '1d' ? 'selected' : '' %>>매일</option>
+                <option value="1h" <%= info.check_interval === '1h' ? 'selected' : '' %>>매시간</option>
+                <option value="1m" <%= info.check_interval === '1m' ? 'selected' : '' %>>매분</option>
+              </select>
             </div>
             <div class="form-group">
               <label>파서 설정</label>

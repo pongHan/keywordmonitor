@@ -143,6 +143,7 @@ exports.addRequest = async (req, res, next) => {
     keyword: req.body.keyword,
     parsing_config: req.body.parsing_config,
     parsing_type: req.body.parsing_type,
+    check_interval:req.body.check_interval,
     start_date: req.body.start_date,
     end_date: req.body.end_date,
     email_send_yn: req.body.email_send_yn,
@@ -173,7 +174,7 @@ exports.viewRequest = async (req, res, next) => {
   const iWord = req.body.iWord;
 
   let query = `SELECT req_id, req_mb_id, receiver_email, req_status, board_name, board_type, post_url, keyword,
-                      parsing_config, parsing_type, start_date, end_date, email_send_yn, pay_type, pay_amount,
+                      parsing_config, parsing_type, check_interval, start_date, end_date, email_send_yn, pay_type, pay_amount,
                       DATE_FORMAT(reg_datetime, '%Y-%m-%d %H:%i:%s') AS reg_datetime
                  FROM km_request
                 WHERE req_id = ${req_id}`;
@@ -206,6 +207,7 @@ exports.updateRequest = async (req, res, next) => {
     keyword: req.body.keyword,
     parsing_config: req.body.parsing_config,
     parsing_type: req.body.parsing_type,
+    check_interval:req.body.check_interval,
     start_date: req.body.start_date,
     end_date: req.body.end_date,
     email_send_yn: req.body.email_send_yn,

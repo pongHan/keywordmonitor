@@ -119,6 +119,15 @@
               <label>키워드 <span style="color:red;">*</span></label>
               <input type="text" required class="form-control" name="keyword" value="<%= info.keyword %>" />
             </div>
+                        <div class="form-group">
+              <label>체크주기</label>
+              <select class="form-control" id="check_interval" name="check_interval">
+                <option value="1d" <%= info.check_interval === '1d' ? 'selected' : '' %>>매일</option>
+                <option value="1h" <%= info.check_interval === '1h' ? 'selected' : '' %>>매시간</option>
+                <option value="1m" <%= info.check_interval === '1m' ? 'selected' : '' %>>매분</option>
+              </select>
+            </div>
+
             <div class="form-group">
               <label>파서 설정</label>
               <input type="text" class="form-control" name="parsing_config" value="<%= info.parsing_config %>" />

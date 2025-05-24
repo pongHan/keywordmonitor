@@ -78,6 +78,7 @@ async function loadConfigFromDB() {
                 keyword,
                 parsing_config,
                 parsing_type,
+                check_interval,
                 req_status AS status,
                 email_send_yn,
                 start_date,
