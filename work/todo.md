@@ -8,3 +8,5 @@
 - 마이홈 : ocr type, 테스트 완료
 - request에 체크 주기(check_inteval) 넣기 
 - km_job_log 테이블 만들기, model controller router;
+- finder.js에 job_log 반영
+    

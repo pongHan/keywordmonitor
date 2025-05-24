@@ -32,7 +32,7 @@ const {
     extractTitle,
     generateSelector,
     captureScreenshot,
-    CHECK_INTERVAL,
+    JOB_INTERVAL,
     RETRY_ATTEMPTS,
     RETRY_DELAY,
     SCREENSHOT_DIR,
@@ -510,7 +510,7 @@ async function main() {
         }
     }
     await checkBoards();
-    setInterval(checkBoards, CHECK_INTERVAL);
+    setInterval(checkBoards, JOB_INTERVAL);
 }
 
 // 실행

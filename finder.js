@@ -14,7 +14,6 @@ console.log(`✅ Loaded .env.${env}`);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 console.log('DB_URL:', process.env.DB_URL);
 
-
 const cheerio = require('cheerio');
 const nodemailer = require('nodemailer');
 const puppeteer = require('puppeteer-extra');
@@ -31,7 +30,7 @@ const {
     extractTitle,
     generateSelector,
     captureScreenshot,
-    CHECK_INTERVAL,
+    JOB_INTERVAL,
     RETRY_ATTEMPTS,
     RETRY_DELAY,
     SCREENSHOT_DIR,
@@ -42,11 +41,6 @@ const {
 puppeteer.use(StealthPlugin());
 
 const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, SENDER_EMAIL, SENDER_PASSWORD, SMTP_SERVER, SMTP_PORT, PORT, PASSPORT_CLIENT_ID, PASSPORT_CLIENT_SECRET } = require("./config.js");
-// 환경 변수 로드
-// const SENDER_EMAIL = process.env.SENDER_EMAIL;
-// const SENDER_PASSWORD = process.env.SENDER_PASSWORD;
-// const SMTP_SERVER = process.env.SMTP_SERVER;
-// const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10);
 
 // Database connection pool setup for MySQL
 const db = mysql.createPool({
@@ -63,6 +57,37 @@ const db = mysql.createPool({
 // 설정
 const RESET_SEEN_POSTS = false; // 디버깅용: true로 설정 시 seen_posts 초기화
 const MAX_KEYWORDS = 10; // 최대 키워드 수 제한
+
+// Parse check_interval (e.g., '1d', '6h', '1h', '1m') to milliseconds
+function parseCheckInterval(interval) {
+    log('debug', `Parsing check_interval: value=${interval}, type=${typeof interval}`);
+    if (!interval || typeof interval !== 'string') {
+        log('error', `Invalid check_interval: not a string (value=${interval})`);
+        return null;
+    }
+    // Trim and convert to lowercase to handle whitespace or case issues
+    const cleanedInterval = interval.trim().toLowerCase();
+    // Allow uppercase/lowercase d, h, m
+    const match = cleanedInterval.match(/^(\d+)([dhm])$/i);
+    if (!match) {
+        log('error', `Invalid check_interval format: ${cleanedInterval}`);
+        return null;
+    }
+    const value = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+    log('debug', `Parsed check_interval: value=${value}, unit=${unit}`);
+    switch (unit) {
+        case 'd': // Days
+            return value * 24 * 60 * 60 * 1000;
+        case 'h': // Hours
+            return value * 60 * 60 * 1000;
+        case 'm': // Minutes
+            return value * 60 * 1000;
+        default:
+            log('error', `Unknown check_interval unit: ${unit}`);
+            return null;
+    }
+}
 
 // 설정 로드 (km_request 테이블에서)
 async function loadConfigFromDB() {
@@ -91,6 +116,7 @@ async function loadConfigFromDB() {
             const normalizedStatus = sanitizeString(row.status).toLowerCase();
             let keyword = sanitizeString(row.keyword);
             const board_name = sanitizeString(row.board_name);
+            const check_interval = sanitizeString(row.check_interval);
             const receiver_email = sanitizeString(row.receiver_email);
             const url = sanitizeString(row.url);
             const parsing_type = sanitizeString(row.parsing_type);
@@ -127,7 +153,8 @@ async function loadConfigFromDB() {
                 email_send_yn,
                 parsing_config: parsingConfig,
                 parsing_type,
-                req_mb_id
+                req_mb_id,
+                check_interval: sanitizeString(row.check_interval) // e.g., '1d', '6h', '1h', '1m'
             };
         });
         log('info', `Loaded ${configs.length} configs from km_request`);
@@ -161,7 +188,7 @@ async function checkDuplicatePost(config, post) {
             log('info', `Duplicate found for req_id=${config.id}, post_url=${config.url}, post_title=${post.title}`);
             return { isDuplicate: true, id: existing[0].detect_id };
         }
-        log('info', `new post for req_id=${config.id}, post_url=${config.url}, post_title=${post.title}`);
+        log('info', `New post for req_id=${config.id}, post_url=${config.url}, post_title=${post.title}`);
         return { isDuplicate: false };
     } catch (error) {
         log('error', `Error in checkDuplicatePost: ${error.message}`);
@@ -186,7 +213,7 @@ async function insertNotificationData(config, post) {
                 detect_datetime,
                 post_title,
                 detect_status
-            ) VALUES (?, ?, ?, ?, ?, NOW(), ?,  '1')
+            ) VALUES (?, ?, ?, ?, ?, NOW(), ?, '1')
         `;
         const insertValues = [
             config.id,
@@ -207,11 +234,67 @@ async function insertNotificationData(config, post) {
     }
 }
 
+// km_job_log에 로그 삽입
+async function logToJobLog(config, result, nonDuplicatePosts, error = null) {
+    let connection;
+    try {
+        connection = await db.getConnection();
+        const insertQuery = `
+            INSERT INTO km_job_log (
+                req_id,
+                board_name,
+                status,
+                result,
+                post_cnt,
+                new_cnt
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        `;
+        const status = error ? 'error' : 'success';
+        const resultMessage = error
+            ? `Error: ${error.message}`
+            : `Fetched ${result.length} posts, ${nonDuplicatePosts.length} new`;
+        const insertValues = [
+            config.id,
+            config.board_name,
+            status,
+            resultMessage,
+            result.length,
+            nonDuplicatePosts.length
+        ];
+        const [insertResult] = await connection.query(insertQuery, insertValues);
+        log('info', `Logged to km_job_log with log_id: ${insertResult.insertId} for req_id: ${config.id}`);
+    } catch (dbError) {
+        log('error', `Error logging to km_job_log for req_id ${config.id}: ${dbError.message}`);
+    } finally {
+        if (connection) connection.release();
+    }
+}
+
 // OCR 실행
 async function runOCR(imagePath) {
     log('info', '🔍 Running OCR...');
-    const { data: { text } } = await Tesseract.recognize(imagePath, 'kor+eng');
-    return text;
+    try {
+        // Try promise-based API
+        const { data: { text } } = await Tesseract.recognize(imagePath, 'kor+eng');
+        return text;
+    } catch (error) {
+        if (error.message.includes('cb')) {
+            // Fallback to callback-based API
+            log('warning', 'Falling back to callback-based Tesseract API');
+            return new Promise((resolve, reject) => {
+                Tesseract.recognize(imagePath, 'kor+eng', (err, result) => {
+                    if (err) {
+                        log('error', `OCR error: ${err.message}`);
+                        reject(err);
+                    } else {
+                        resolve(result.data.text);
+                    }
+                });
+            });
+        }
+        log('error', `OCR error: ${error.message}`);
+        throw error;
+    }
 }
 
 // 공통 이메일 전송 함수 (HTML 테이블 형식)
@@ -270,25 +353,22 @@ async function sendEmail({ subject, posts, receiverEmail, receiverName }) {
 }
 
 // Puppeteer로 크롤링
-// Function to extract plain text from <article> element for FMKorea
 function extractContent($, post, board_type) {
     if (board_type !== 'fmkorea') {
-        return null; // Only process for fmkorea board_type
+        return null;
     }
     const article = $(post).find('article').html();
     if (!article) {
         log('warning', 'No <article> element found in post');
         return null;
     }
-    // Load article content into Cheerio and extract text, removing all tags
     const $article = cheerio.load(article);
-    const text = $article('article').text().replace(/\s+/g, ' ').trim(); // Normalize whitespace
+    const text = $article('article').text().replace(/\s+/g, ' ').trim();
     return text || null;
 }
 
-// Main crawling function
 async function crawlWithPuppeteer(config) {
-    const { url, keywords, board_type, board_name, parsing_config, receiver_email, receiver_name } = config;
+    const { url, keywords, board_type, board_name, parsing_config, receiver_email, receiver_name, email_send_yn } = config;
     let allResults = [];
     let allPostsToNotify = [];
 
@@ -316,7 +396,7 @@ async function crawlWithPuppeteer(config) {
                     log('info', `title=${titleText} (keyword: ${keyword})`);
                     let link = extractLink($, post, parsing_config.link, modifiedUrl, titleText);
                     let postDate = extractDate($, post, parsing_config.date, board_type, today);
-                    let postContent = extractContent($, post, board_type); // Extract content for FMKorea
+                    let postContent = extractContent($, post, board_type);
                     if (titleText && link) {
                         titleText = titleText.replace(/\s+/g, ' ').trim();
                         const normalizedTitle = titleText.toLowerCase();
@@ -331,7 +411,8 @@ async function crawlWithPuppeteer(config) {
                                         link, 
                                         date: postDate.format('YYYY-MM-DD'), 
                                         keyword, 
-                                        content: postContent 
+                                        content: postContent,
+                                        wasNotified: true
                                     });
                                 } else {
                                     log('info', `⏳ 작성일 ${postDate.format('YYYY-MM-DD')} => 최근 글 아님 (keyword: ${keyword})`);
@@ -343,7 +424,8 @@ async function crawlWithPuppeteer(config) {
                                     link, 
                                     date: null, 
                                     keyword, 
-                                    content: postContent 
+                                    content: postContent,
+                                    wasNotified: true
                                 });
                             }
                         }
@@ -368,7 +450,6 @@ async function crawlWithPuppeteer(config) {
         }
     }
 
-    // Duplicate check and insertion
     const nonDuplicatePosts = [];
     if (allPostsToNotify.length > 0) {
         for (const post of allPostsToNotify) {
@@ -378,8 +459,7 @@ async function crawlWithPuppeteer(config) {
                 nonDuplicatePosts.push(post);
             }
         }
-        // Send email only if there are non-duplicate posts
-        if (nonDuplicatePosts.length > 0 && config.email_send_yn=='Y') {
+        if (nonDuplicatePosts.length > 0 && email_send_yn === 'Y') {
             await sendEmail({
                 subject: `[알림] ${board_name} 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
                 posts: nonDuplicatePosts,
@@ -395,85 +475,92 @@ async function crawlWithPuppeteer(config) {
     return allResults;
 }
 
-// 게시판 파싱 (텍스트 또는 OCR)
 async function fetchBoard(config) {
-    const { url, keywords, board_type, board_name, parsing_config, receiver_email, receiver_name } = config;
+    const { url, keywords, board_type, board_name, parsing_config, receiver_email, receiver_name, email_send_yn } = config;
     log('info', `>>>> ${board_name} ${board_type} ${keywords.join(', ')}`);
     const modifiedUrl = url.replace(/\$keyword/i, encodeURIComponent(keywords[0]));
     log('info', `🌐 Fetching board: ${modifiedUrl}`);
     const parsingType = parsing_config.parsing_type || 'text';
-    if (parsingType === 'ocr') {
-        await fs.mkdir(SCREENSHOT_DIR, { recursive: true });
-        const screenshotPath = path.join(SCREENSHOT_DIR, `${Date.now()}_page.png`);
-        log('info', '📸 Taking screenshot...');
-        await captureScreenshot(modifiedUrl, screenshotPath);
-        const ocrText = await runOCR(screenshotPath);
-        log('debug', '📄 Extracted Text:\n' + ocrText);
-        const lines = ocrText
-            .split('\n')
-            .map((line) => line.trim())
-            .filter((line) => line.length > 0);
-        const result = [];
-        const postsToNotify = [];
-        if (lines.length > 0) {
-            log('info', `\n🔎 키워드 "${keywords.join(', ')}" 감지 결과:`);
-            lines.forEach((line, index) => {
-                const normalizedLine = line.toLowerCase().replace(/\s+/g, ' ');
-                for (const keyword of keywords) {
-                    if (normalizedLine.includes(keyword)) {
-                        const link = `${modifiedUrl}#line_${index}`;
-                        result.push({ title: line, link, keyword });
-                        log('info', `${index + 1}. ${line} (Link: ${link}, keyword: ${keyword})`);
-                        const formattedDate = parseDate(line);
-                        if (formattedDate) {
-                            const postDate = dayjs(formattedDate);
-                            const today = dayjs();
-                            const diff = today.diff(postDate, 'day');
-                            if (diff <= 2) {
-                                log('info', `📬 작성일 ${postDate.format('YYYY-MM-DD')} => 최근 글이므로 메일 발송 (keyword: ${keyword})`);
-                                postsToNotify.push({ title: line, link, date: postDate.format('YYYY-MM-DD'), keyword });
-                            } else {
-                                log('info', `⏳ 작성일 ${postDate.format('YYYY-MM-DD')} => 최근 글 아님 (keyword: ${keyword})`);
-                            }
-                        } else {
-                            log('info', `📅 작성일 정보를 찾을 수 없음 (keyword: ${keyword})`);
-                            postsToNotify.push({ title: line, link, date: null, keyword });
-                        }
-                        break;
-                    }
-                }
-            });
+    let result = [];
+    let nonDuplicatePosts = [];
 
-            // 중복 체크 및 삽입
-            const nonDuplicatePosts = [];
-            if (postsToNotify.length > 0) {
-                for (const post of postsToNotify) {
-                    const duplicateCheck = await checkDuplicatePost(config, post);
-                    if (!duplicateCheck.isDuplicate) {
-                        await insertNotificationData(config, post);
-                        nonDuplicatePosts.push(post);
+    try {
+        if (parsingType === 'ocr') {
+            await fs.mkdir(SCREENSHOT_DIR, { recursive: true });
+            const screenshotPath = path.join(SCREENSHOT_DIR, `${Date.now()}_page.png`);
+            log('info', '📸 Taking screenshot...');
+            await captureScreenshot(modifiedUrl, screenshotPath);
+            const ocrText = await runOCR(screenshotPath);
+            log('debug', '📄 Extracted Text:\n' + ocrText);
+            const lines = ocrText
+                .split('\n')
+                .map((line) => line.trim())
+                .filter((line) => line.length > 0);
+            const postsToNotify = [];
+            if (lines.length > 0) {
+                log('info', `\n🔎 키워드 "${keywords.join(', ')}" 감지 결과:`);
+                lines.forEach((line, index) => {
+                    const normalizedLine = line.toLowerCase().replace(/\s+/g, ' ');
+                    for (const keyword of keywords) {
+                        if (normalizedLine.includes(keyword)) {
+                            const link = `${modifiedUrl}#line_${index}`;
+                            result.push({ title: line, link, keyword });
+                            log('info', `${index + 1}. ${line} (Link: ${link}, keyword: ${keyword})`);
+                            const formattedDate = parseDate(line);
+                            if (formattedDate) {
+                                const postDate = dayjs(formattedDate);
+                                const today = dayjs();
+                                const diff = today.diff(postDate, 'day');
+                                if (diff <= 2) {
+                                    log('info', `📬 작성일 ${postDate.format('YYYY-MM-DD')} => 최근 글이므로 메일 발송 (keyword: ${keyword})`);
+                                    postsToNotify.push({ title: line, link, date: postDate.format('YYYY-MM-DD'), keyword, wasNotified: true });
+                                } else {
+                                    log('info', `⏳ 작성일 ${postDate.format('YYYY-MM-DD')} => 최근 글 아님 (keyword: ${keyword})`);
+                                }
+                            } else {
+                                log('info', `📅 작성일 정보를 찾을 수 없음 (keyword: ${keyword})`);
+                                postsToNotify.push({ title: line, link, date: null, keyword, wasNotified: true });
+                            }
+                            break;
+                        }
+                    }
+                });
+
+                if (postsToNotify.length > 0) {
+                    for (const post of postsToNotify) {
+                        const duplicateCheck = await checkDuplicatePost(config, post);
+                        if (!duplicateCheck.isDuplicate) {
+                            await insertNotificationData(config, post);
+                            nonDuplicatePosts.push(post);
+                        }
+                    }
+                    if (nonDuplicatePosts.length > 0 && email_send_yn === 'Y') {
+                        await sendEmail({
+                            subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+                            posts: nonDuplicatePosts,
+                            receiverEmail: receiver_email,
+                            receiverName: receiver_name,
+                        });
+                    } else {
+                        log('info', 'No new posts to notify after duplicate check.');
                     }
                 }
-                // 중복되지 않은 게시물이 있을 경우에만 이메일 발송
-                if (nonDuplicatePosts.length > 0 && config.email_send_yn=='Y') {
-                    await sendEmail({
-                        subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
-                        posts: nonDuplicatePosts,
-                        receiverEmail: receiver_email,
-                        receiverName: receiver_name,
-                    });
-                } else {
-                    log('info', 'No new posts to notify after duplicate check.');
-                }
+            } else {
+                log('info', `\n❌ 키워드 "${keywords.join(', ')}"가 감지되지 않았습니다.`);
             }
         } else {
-            log('info', `\n❌ 키워드 "${keywords.join(', ')}"가 감지되지 않았습니다.`);
+            result = await crawlWithPuppeteer(config);
+            nonDuplicatePosts = result.filter(post => post.wasNotified);
         }
-        log('debug', `Fetched ${result.length} posts from ${modifiedUrl} for keywords ${keywords.join(', ')}: ${JSON.stringify(result)}`);
-        return result;
-    } else {
-        return await crawlWithPuppeteer(config);
+    } catch (error) {
+        log('error', `Error in fetchBoard for ${board_name}: ${error.message}`);
+        await logToJobLog(config, result, nonDuplicatePosts, error);
+        throw error;
     }
+
+    await logToJobLog(config, result, nonDuplicatePosts);
+    log('debug', `Fetched ${result.length} posts from ${modifiedUrl} for keywords ${keywords.join(', ')}: ${JSON.stringify(result)}`);
+    return result;
 }
 
 // 메인 함수
@@ -487,7 +574,7 @@ async function main() {
         const configs = await loadConfigFromDB();
         const today = dayjs();
         for (const config of configs) {
-            const { id, receiver_name, receiver_email, url, keywords, board_type, board_name, status, start_date, end_date, parsing_config } = config;
+            const { id, receiver_name, receiver_email, url, keywords,  board_type, board_name, status, start_date, end_date, parsing_config, check_interval } = config;
             if (!receiver_name || !receiver_email || !url || !keywords.length || !board_type || !board_name || !status || !start_date || !end_date || !parsing_config) {
                 log('error', `Invalid config entry (ID: ${id}): ${JSON.stringify(config)}`);
                 continue;
@@ -506,14 +593,54 @@ async function main() {
                 log('info', `Skipping board ${board_name}: Today (${today.format('YYYY-MM-DD')}) is not between ${start_date} and ${end_date}`);
                 continue;
             }
+
+            // Check if check_interval has elapsed since last log
+            if (check_interval) {
+                try {
+                    const intervalMs = parseCheckInterval(check_interval);
+                    if (intervalMs === null) {
+                        log('error', `Skipping board ${board_name}: Invalid check_interval ${check_interval}`);
+                        continue;
+                    }
+                    const query = `
+                        SELECT reg_datetime
+                        FROM km_job_log
+                        WHERE req_id = ?
+                        ORDER BY reg_datetime DESC
+                        LIMIT 1
+                    `;
+                    const [rows] = await db.query(query, [id]);
+                    if (rows.length > 0) {
+                        const lastRun = dayjs(rows[0].reg_datetime);
+                        const nextRun = lastRun.add(intervalMs, 'millisecond');
+                        if (today.isBefore(nextRun)) {
+                            log('info', `Skipping board ${board_name}: check_interval (${check_interval}) not elapsed. Next run after ${nextRun.format('YYYY-MM-DD HH:mm:ss')}`);
+                            continue;
+                        }
+                    }
+                } catch (error) {
+                    log('error', `Error checking last run for req_id ${id}: ${error.message}`);
+                    continue;
+                }
+            }
+
             log('info', `Processing board ${board_name}: Status is "open" and today (${today.format('YYYY-MM-DD')}) is between ${start_date} and ${end_date}`);
             const normalizedKeywords = keywords.map(k => k.toLowerCase().replace(/\s+/g, ' '));
             log('info', `keywords=${normalizedKeywords.join(', ')}`);
-            await fetchBoard({ ...config, keywords: normalizedKeywords });
+            try {
+                await fetchBoard({ ...config, keywords: normalizedKeywords });
+            } catch (error) {
+                log('error', `Error processing board ${board_name}: ${error.message}`);
+            }
         }
     }
-    await checkBoards();
-    setInterval(checkBoards, CHECK_INTERVAL);
+    try {
+        await checkBoards();
+        log('info', `Setting interval with JOB_INTERVAL=${JOB_INTERVAL}`);
+        setInterval(checkBoards, JOB_INTERVAL);
+    } catch (error) {
+        log('error', `Error in checkBoards: ${error.message}`);
+    }
 }
 
 // 실행

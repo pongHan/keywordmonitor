@@ -9,7 +9,7 @@ const dayjs = require('dayjs');
 puppeteer.use(StealthPlugin());
 
 // 상수 정의
-const CHECK_INTERVAL = 60 * 1000; // 60초 (ms)
+const JOB_INTERVAL = 60 * 1000; // 60초 (ms)
 const RETRY_ATTEMPTS = 3; // 재시도 횟수
 const RETRY_DELAY = 5000; // 재시도 간 딜레이 (ms)
 const SCREENSHOT_DIR = 'screenshots';
@@ -257,7 +257,7 @@ module.exports = {
     generateSelector,
     captureScreenshot,
     cleanupScreenshots,
-    CHECK_INTERVAL,
+    JOB_INTERVAL,
     RETRY_ATTEMPTS,
     RETRY_DELAY,
     SCREENSHOT_DIR,

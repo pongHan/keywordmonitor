@@ -37,7 +37,7 @@ const {
     extractTitle,
     generateSelector,
     captureScreenshot,
-    CHECK_INTERVAL,
+    JOB_INTERVAL,
     RETRY_ATTEMPTS,
     RETRY_DELAY,
     SCREENSHOT_DIR,
@@ -663,8 +663,8 @@ async function main() {
     } catch (error) {
         log('error', `Error in checkBoards: ${error.message}`);
     }
-    log('info', `Setting interval with CHECK_INTERVAL=${CHECK_INTERVAL}`);
-    setInterval(checkBoards, CHECK_INTERVAL);
+    log('info', `Setting interval with JOB_INTERVAL=${JOB_INTERVAL}`);
+    setInterval(checkBoards, JOB_INTERVAL);
 }
 
 // 실행
