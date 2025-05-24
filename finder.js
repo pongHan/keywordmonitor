@@ -125,7 +125,7 @@ async function loadConfigFromDB() {
 }
 
 // 중복 게시물 체크
-async function checkDuplicatePost(config, detectedTitle, postDate) {
+async function checkDuplicatePost(config, post) {
     let connection;
     try {
         connection = await db.getConnection();
@@ -135,20 +135,19 @@ async function checkDuplicatePost(config, detectedTitle, postDate) {
             WHERE req_id = ?
             AND post_url = ?
             AND post_title = ?
-            AND post_date = ? 
             LIMIT 1
         `;
         const checkValues = [
             config.id,
-            config.url,
-            detectedTitle,
-            postDate
+            post.link,
+            post.title
         ];
         const [existing] = await connection.query(checkQuery, checkValues);
         if (existing.length > 0) {
-            log('info', `Duplicate found for req_id=${config.id}, post_url=${config.url}, post_title=${detectedTitle} within last ${timeWindowMinutes} minutes`);
+            log('info', `Duplicate found for req_id=${config.id}, post_url=${post.link}, post_title=${post.title}`);
             return { isDuplicate: true, id: existing[0].detect_id };
         }
+        log('info', `new post for req_id=${config.id}, post_url=${post.link}, post_title=${post.title}`);
         return { isDuplicate: false };
     } catch (error) {
         log('error', `Error in checkDuplicatePost: ${error.message}`);
@@ -359,7 +358,8 @@ async function crawlWithPuppeteer(config) {
     const nonDuplicatePosts = [];
     if (allPostsToNotify.length > 0) {
         for (const post of allPostsToNotify) {
-            const duplicateCheck = await checkDuplicatePost(config, post.title, post.postDate);
+            const duplicateCheck = await checkDuplicatePost(config, post);
+            log('info', "duplicateCheck="+duplicateCheck.isDuplicate);
             if (!duplicateCheck.isDuplicate) {
                 await insertNotificationData(config, post);
                 nonDuplicatePosts.push(post);
@@ -435,7 +435,8 @@ async function fetchBoard(config) {
             const nonDuplicatePosts = [];
             if (postsToNotify.length > 0) {
                 for (const post of postsToNotify) {
-                    const duplicateCheck = await checkDuplicatePost(config, post.title);
+                    const duplicateCheck = await checkDuplicatePost(config, post);
+                    log('info', "duplicateCheck="+duplicateCheck.isDuplicate);
                     if (!duplicateCheck.isDuplicate) {
                         await insertNotificationData(config, post);
                         nonDuplicatePosts.push(post);
