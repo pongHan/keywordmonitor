@@ -1,3 +1,21 @@
+CREATE TABLE `km_job_log` (
+	`log_id` INT(11) NOT NULL AUTO_INCREMENT COMMENT '로그ID',
+	`req_id` INT(8) NOT NULL COMMENT '요청ID',
+	`board_name` VARCHAR(100) NOT NULL DEFAULT '' COMMENT '게시판명' COLLATE 'utf8_general_ci',
+	`status` VARCHAR(20) NOT NULL DEFAULT '' COMMENT '상태코드' COLLATE 'utf8_general_ci',
+  `result` VARCHAR(200) NOT NULL DEFAULT '' COMMENT '결과' COLLATE 'utf8_general_ci',
+	`post_cnt` INT(8) NOT NULL COMMENT '게시물건수',
+	`new_cnt` INT(8) NOT NULL COMMENT '신규건수',
+	`reg_datetime` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '등록일시',
+	PRIMARY KEY (`log_id`) USING BTREE	
+)
+COMMENT='작업로그'
+COLLATE='utf8_general_ci'
+ENGINE=MyISAM
+AUTO_INCREMENT=6
+;
+
+
 TRUNCATE km_detect;
 
 CREATE TABLE `km_request` (

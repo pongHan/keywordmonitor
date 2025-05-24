@@ -43,26 +43,18 @@ detect_status <= '1' (detected)
 
 
 1. table
-CREATE TABLE `km_request` (
-	`req_id` INT(8) NOT NULL AUTO_INCREMENT COMMENT '요청ID',
-	`req_mb_id` VARCHAR(50) NOT NULL DEFAULT '' COMMENT '회원ID' COLLATE 'utf8_general_ci',
-	`receiver_email` VARCHAR(100) NOT NULL DEFAULT '' COMMENT '수신이메일' COLLATE 'utf8_general_ci',
-	`req_status` VARCHAR(20) NOT NULL DEFAULT 'open' COMMENT '상태' COLLATE 'utf8_general_ci',
+CREATE TABLE `km_job_log` (
+	`log_id` INT(11) NOT NULL AUTO_INCREMENT COMMENT '로그ID',
+	`req_id` INT(8) NOT NULL COMMENT '요청ID',
 	`board_name` VARCHAR(100) NOT NULL DEFAULT '' COMMENT '게시판명' COLLATE 'utf8_general_ci',
-	`board_type` VARCHAR(50) NOT NULL DEFAULT '' COMMENT '게시판Type' COLLATE 'utf8_general_ci',
-	`post_url` VARCHAR(500) NOT NULL DEFAULT '' COMMENT 'URL' COLLATE 'utf8_general_ci',
-	`keyword` VARCHAR(100) NOT NULL DEFAULT '' COMMENT '키워드' COLLATE 'utf8_general_ci',
-	`parsing_config` VARCHAR(500) NOT NULL DEFAULT '' COMMENT '파서설정' COLLATE 'utf8_general_ci',
-	`parsing_type` VARCHAR(20) NOT NULL DEFAULT '' COMMENT '파싱타입' COLLATE 'utf8_general_ci',
-	`start_date` VARCHAR(12) NOT NULL COMMENT '시작일자' COLLATE 'utf8_general_ci',
-	`end_date` VARCHAR(12) NOT NULL COMMENT '종료일자' COLLATE 'utf8_general_ci',
-	`pay_type` VARCHAR(20) NOT NULL COMMENT 'Pay타입' COLLATE 'utf8_general_ci',
-	`pay_amount` INT(8) NOT NULL COMMENT '금액',
+	`status` VARCHAR(20) NOT NULL DEFAULT '' COMMENT '상태코드' COLLATE 'utf8_general_ci',
+  `result` VARCHAR(200) NOT NULL DEFAULT '' COMMENT '결과' COLLATE 'utf8_general_ci',
+	`post_cnt` INT(8) NOT NULL COMMENT '게시물건수',
+	`new_cnt` INT(8) NOT NULL COMMENT '신규건수',
 	`reg_datetime` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '등록일시',
-	PRIMARY KEY (`req_id`) USING BTREE,
-	INDEX `index1` (`req_mb_id`) USING BTREE
+	PRIMARY KEY (`log_id`) USING BTREE	
 )
-COMMENT='요청'
+COMMENT='작업로그'
 COLLATE='utf8_general_ci'
 ENGINE=MyISAM
 AUTO_INCREMENT=6
@@ -71,8 +63,8 @@ AUTO_INCREMENT=6
 2. make model, controller, rotuter for km_request table
 
 	<sample model>
-	//**********************************************/
-//    @Project : alphaBot (메타봇)
+//**********************************************/
+//    @Project : keywordmonitor
 //    @File : org.model.js
 //    @Desc : 기관/회사 model
 //    @Author : modeller77@gmail.com
@@ -138,33 +130,34 @@ module.exports = (sequelize, DataTypes) => {
 
 	<sample router>
 
-const orgController = require("../controllers/org.controller.js");
+const kmRequestController = require("../controllers/km_request.controller.js");
 const router = require("express").Router();
 const userAuth = require('../middlewares/auth.js').userAuth;
 
-router.route('/getOrgs')
-      .get(userAuth,orgController.getOrgs) //get request
-      .post(userAuth,orgController.postOrgs) //post request
+router.route('/getRequests')
+      .get(userAuth, kmRequestController.getRequests)
+      .post(userAuth, kmRequestController.postRequests)
 
-router.route('/getOrg')
-      .get(userAuth,orgController.getOrg) //get request
-router.route('/viewOrg')
-      .post(userAuth,orgController.viewOrg) 
-router.route('/deleteOrg/:org_id')
-      .delete(userAuth,orgController.deleteOrg) 
-router.route('/manageOrg')
-      .get(userAuth, orgController.manageOrg) 
-router.route('/listOrg')
-      .get(userAuth, orgController.listOrg) 
-router.route('/selectOrg/:org_id')
-      .delete(userAuth,orgController.selectOrg) 
+router.route('/getRequest')
+      .get(userAuth, kmRequestController.getRequest)
+router.route('/viewRequest')
+      .post(userAuth, kmRequestController.viewRequest)
+router.route('/addRequest')
+      .post(userAuth, kmRequestController.addRequest)
+router.route('/updateRequest')
+      .patch(userAuth, kmRequestController.updateRequest)
+router.route('/deleteRequest/:req_id')
+      .delete(userAuth, kmRequestController.deleteRequest)
+router.route('/listRequests')
+      .get(userAuth, kmRequestController.listRequests)
+router.route('/selectRequest/:req_id')
+      .get(userAuth, kmRequestController.selectRequest)
 
-module.exports = router;
-   
+module.exports = router;   
 < sample controller >
 
 //**********************************************/
-//   @Project :  (메타봇)
+//   @Project : keywordmonitor
 //   @File : Orgcontroller.js
 //   @Desc :  controller
 //   @Team : 
