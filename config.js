@@ -1,4 +1,6 @@
 const { config } = require("dotenv").config();
+// require('dotenv').config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
+
 
 exports.PORT = process.env.PORT || 3000;
 exports.DB_HOST = process.env.DB_HOST;

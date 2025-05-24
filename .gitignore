@@ -60,11 +60,7 @@ node_modules/
 .yarn-integrity
 
 # dotenv environment variables file
-.env
-.env.local
-.env.development
-.env.production
-
+#.env
 # macOS-specific files
 .DS_Store
 

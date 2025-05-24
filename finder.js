@@ -1,4 +1,3 @@
-//require('dotenv').config();
 const dotenv = require('dotenv');
 const fs = require('fs').promises;
 const path = require('path');
@@ -42,19 +41,20 @@ const {
 // 스텔스 플러그인 등록
 puppeteer.use(StealthPlugin());
 
+const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, SENDER_EMAIL, SENDER_PASSWORD, SMTP_SERVER, SMTP_PORT, PORT, PASSPORT_CLIENT_ID, PASSPORT_CLIENT_SECRET } = require("./config.js");
 // 환경 변수 로드
-const SENDER_EMAIL = process.env.SENDER_EMAIL;
-const SENDER_PASSWORD = process.env.SENDER_PASSWORD;
-const SMTP_SERVER = process.env.SMTP_SERVER;
-const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10);
+// const SENDER_EMAIL = process.env.SENDER_EMAIL;
+// const SENDER_PASSWORD = process.env.SENDER_PASSWORD;
+// const SMTP_SERVER = process.env.SMTP_SERVER;
+// const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10);
 
 // Database connection pool setup for MySQL
 const db = mysql.createPool({
-    host: process.env.DB_HOST,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    port: process.env.DB_PORT || 3306,
+    host: DB_HOST,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    database: DB_NAME,
+    port: DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -79,6 +79,7 @@ async function loadConfigFromDB() {
                 parsing_config,
                 parsing_type,
                 req_status AS status,
+                email_send_yn,
                 start_date,
                 end_date
             FROM km_request
@@ -93,6 +94,7 @@ async function loadConfigFromDB() {
             const url = sanitizeString(row.url);
             const parsing_type = sanitizeString(row.parsing_type);
             const req_mb_id = sanitizeString(row.req_mb_id);
+            const email_send_yn = sanitizeString(row.email_send_yn);
 
             let keywords = keyword.split(',').map(k => k.trim()).filter(k => k.length > 0);
             if (keywords.length > MAX_KEYWORDS) {
@@ -121,6 +123,7 @@ async function loadConfigFromDB() {
                 status: normalizedStatus,
                 start_date: sanitizeString(row.start_date),
                 end_date: sanitizeString(row.end_date),
+                email_send_yn,
                 parsing_config: parsingConfig,
                 parsing_type,
                 req_mb_id
@@ -375,13 +378,13 @@ async function crawlWithPuppeteer(config) {
             }
         }
         // Send email only if there are non-duplicate posts
-        if (nonDuplicatePosts.length > 0) {
-            // await sendEmail({
-            //     subject: `[알림] ${board_name} 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
-            //     posts: nonDuplicatePosts,
-            //     receiverEmail: receiver_email,
-            //     receiverName: receiver_name,
-            // });
+        if (nonDuplicatePosts.length > 0 && config.email_send_yn=='Y') {
+            await sendEmail({
+                subject: `[알림] ${board_name} 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+                posts: nonDuplicatePosts,
+                receiverEmail: receiver_email,
+                receiverName: receiver_name,
+            });
         } else {
             log('info', 'No new posts to notify after duplicate check.');
         }
@@ -403,7 +406,6 @@ async function fetchBoard(config) {
         const screenshotPath = path.join(SCREENSHOT_DIR, `${Date.now()}_page.png`);
         log('info', '📸 Taking screenshot...');
         await captureScreenshot(modifiedUrl, screenshotPath);
-        log('info', '🔍 Running OCR...');
         const ocrText = await runOCR(screenshotPath);
         log('debug', '📄 Extracted Text:\n' + ocrText);
         const lines = ocrText
@@ -452,13 +454,13 @@ async function fetchBoard(config) {
                     }
                 }
                 // 중복되지 않은 게시물이 있을 경우에만 이메일 발송
-                if (nonDuplicatePosts.length > 0) {
-                    // await sendEmail({
-                    //     subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
-                    //     posts: nonDuplicatePosts,
-                    //     receiverEmail: receiver_email,
-                    //     receiverName: receiver_name,
-                    // });
+                if (nonDuplicatePosts.length > 0 && config.email_send_yn=='Y') {
+                    await sendEmail({
+                        subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+                        posts: nonDuplicatePosts,
+                        receiverEmail: receiver_email,
+                        receiverName: receiver_name,
+                    });
                 } else {
                     log('info', 'No new posts to notify after duplicate check.');
                 }
@@ -515,4 +517,3 @@ async function main() {
 
 // 실행
 main().catch((error) => log('error', `Main error: ${error.message}`));
-

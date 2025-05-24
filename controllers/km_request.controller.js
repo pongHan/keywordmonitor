@@ -11,6 +11,7 @@ const { QueryTypes } = require("sequelize");
 const db = require("../models");
 const km_request = db.km_request;
 const commonLib = require('../modules/common.lib');
+const dayjs = require('dayjs');
 
 exports.getRequests = async (req, res, next) => {
   const url = require('url');
@@ -182,6 +183,8 @@ exports.viewRequest = async (req, res, next) => {
       if (typeof value === "object" && value !== undefined) {
         elem[key] = value.toString('utf8');
       }
+      elem.start_date_formatted = dayjs(elem.start_date).format('YYYY-MM-DD');
+      elem.end_date_formatted = dayjs(elem.end_date).format('YYYY-MM-DD');
     }
   });
 

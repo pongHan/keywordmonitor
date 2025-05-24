@@ -70,12 +70,12 @@ module.exports = (sequelize, DataTypes) => {
           get() { return this.getDataValue('parsing_type').toString('utf8'); }
         },
         start_date: {
-          type: DataTypes.STRING(12),
+          type: DataTypes.DATE,
           allowNull: false,
           get() { return this.getDataValue('start_date').toString('utf8'); }
         },
         end_date: {
-          type: DataTypes.STRING(12),
+          type: DataTypes.DATE,
           allowNull: false,
           get() { return this.getDataValue('end_date').toString('utf8'); }
         },
