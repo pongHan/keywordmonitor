@@ -1,6 +1,5 @@
-//require('dotenv').config();
 const dotenv = require('dotenv');
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 
 const cheerio = require('cheerio');
@@ -29,7 +28,7 @@ const {
 // 스텔스 플러그인 등록
 puppeteer.use(StealthPlugin());
 
-const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, PORT, PASSPORT_CLIENT_ID, PASSPORT_CLIENT_SECRET } = require("./config.js");
+const { DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, SENDER_EMAIL, SENDER_PASSWORD, SMTP_SERVER, SMTP_PORT, PORT, PASSPORT_CLIENT_ID, PASSPORT_CLIENT_SECRET } = require("./config.js");
 // 환경 변수 로드
 // const SENDER_EMAIL = process.env.SENDER_EMAIL;
 // const SENDER_PASSWORD = process.env.SENDER_PASSWORD;
@@ -67,6 +66,7 @@ async function loadConfigFromDB() {
                 parsing_config,
                 parsing_type,
                 req_status AS status,
+                email_send_yn,
                 start_date,
                 end_date
             FROM km_request
@@ -81,6 +81,7 @@ async function loadConfigFromDB() {
             const url = sanitizeString(row.url);
             const parsing_type = sanitizeString(row.parsing_type);
             const req_mb_id = sanitizeString(row.req_mb_id);
+            const email_send_yn = sanitizeString(row.email_send_yn);
 
             let keywords = keyword.split(',').map(k => k.trim()).filter(k => k.length > 0);
             if (keywords.length > MAX_KEYWORDS) {
@@ -109,6 +110,7 @@ async function loadConfigFromDB() {
                 status: normalizedStatus,
                 start_date: sanitizeString(row.start_date),
                 end_date: sanitizeString(row.end_date),
+                email_send_yn,
                 parsing_config: parsingConfig,
                 parsing_type,
                 req_mb_id
@@ -123,7 +125,7 @@ async function loadConfigFromDB() {
 }
 
 // 중복 게시물 체크
-async function checkDuplicatePost(config, detectedTitle, timeWindowMinutes = 10) {
+async function checkDuplicatePost(config, detectedTitle, postDate) {
     let connection;
     try {
         connection = await db.getConnection();
@@ -133,14 +135,14 @@ async function checkDuplicatePost(config, detectedTitle, timeWindowMinutes = 10)
             WHERE req_id = ?
             AND post_url = ?
             AND post_title = ?
-            AND detect_datetime >= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+            AND post_date = ? 
             LIMIT 1
         `;
         const checkValues = [
             config.id,
             config.url,
             detectedTitle,
-            timeWindowMinutes
+            postDate
         ];
         const [existing] = await connection.query(checkQuery, checkValues);
         if (existing.length > 0) {
@@ -357,20 +359,20 @@ async function crawlWithPuppeteer(config) {
     const nonDuplicatePosts = [];
     if (allPostsToNotify.length > 0) {
         for (const post of allPostsToNotify) {
-            const duplicateCheck = await checkDuplicatePost(config, post.title);
+            const duplicateCheck = await checkDuplicatePost(config, post.title, post.postDate);
             if (!duplicateCheck.isDuplicate) {
                 await insertNotificationData(config, post);
                 nonDuplicatePosts.push(post);
             }
         }
         // Send email only if there are non-duplicate posts
-        if (nonDuplicatePosts.length > 0) {
-            // await sendEmail({
-            //     subject: `[알림] ${board_name} 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
-            //     posts: nonDuplicatePosts,
-            //     receiverEmail: receiver_email,
-            //     receiverName: receiver_name,
-            // });
+        if (nonDuplicatePosts.length > 0 && config.email_send_yn=='Y') {
+            await sendEmail({
+                subject: `[알림] ${board_name} 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+                posts: nonDuplicatePosts,
+                receiverEmail: receiver_email,
+                receiverName: receiver_name,
+            });
         } else {
             log('info', 'No new posts to notify after duplicate check.');
         }
@@ -392,7 +394,6 @@ async function fetchBoard(config) {
         const screenshotPath = path.join(SCREENSHOT_DIR, `${Date.now()}_page.png`);
         log('info', '📸 Taking screenshot...');
         await captureScreenshot(modifiedUrl, screenshotPath);
-        log('info', '🔍 Running OCR...');
         const ocrText = await runOCR(screenshotPath);
         log('debug', '📄 Extracted Text:\n' + ocrText);
         const lines = ocrText
@@ -441,13 +442,13 @@ async function fetchBoard(config) {
                     }
                 }
                 // 중복되지 않은 게시물이 있을 경우에만 이메일 발송
-                if (nonDuplicatePosts.length > 0) {
-                    // await sendEmail({
-                    //     subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
-                    //     posts: nonDuplicatePosts,
-                    //     receiverEmail: receiver_email,
-                    //     receiverName: receiver_name,
-                    // });
+                if (nonDuplicatePosts.length > 0 && config.email_send_yn=='Y') {
+                    await sendEmail({
+                        subject: `[알림] 키워드 "${keywords.join(', ')}" 관련 최근 게시물`,
+                        posts: nonDuplicatePosts,
+                        receiverEmail: receiver_email,
+                        receiverName: receiver_name,
+                    });
                 } else {
                     log('info', 'No new posts to notify after duplicate check.');
                 }

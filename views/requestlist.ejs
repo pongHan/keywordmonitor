@@ -134,6 +134,7 @@
                     <th>요청 ID</th>
                     <th>회원 ID</th>
                     <th>상태</th>
+                    <th>이메일발송</th>
                     <th>게시판명</th>
                     <th>게시판 타입</th>
                     <th>키워드</th>
@@ -158,6 +159,9 @@
                         </td>
                         <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
                           <%= list[i].req_status %>
+                        </td>
+                        <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
+                          <%= list[i].email_send_yn %>
                         </td>
                         <td onclick="view('<%= list[i].req_id %>')" style="cursor: pointer;">
                           <%= list[i].board_name %>

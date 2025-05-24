@@ -2,6 +2,13 @@
 <%- include('./inc/htmlTemplate.ejs') %>
 
 <script type="text/javascript">
+  
+  const ocr_parsing_config= {"container":{"tag":"tr"},"title":{"tag":"td","search_all":true},"date":{"tag":"td","index":3},"link":"date_based","parsing_type":"ocr"};
+
+  window.onload = function(){
+    sampleData();
+  }
+ 
   function clearRequest() {
     $("#req_mb_id").val("");
     $("#receiver_email").val("");
@@ -14,7 +21,25 @@
     $("#parsing_type").val("");
     $("#start_date").val("");
     $("#end_date").val("");
+    $("#email_send_yn").val("");
     $("#pay_type").val("");
+    $("#pay_amount").val("");
+  }
+
+  function sampleData() {
+    $("#req_mb_id").val("modeller@naver.com");
+    $("#receiver_email").val("modeller@naver.com");
+    $("#req_status").val("open");
+    $("#board_name").val("마이홈");
+    $("#board_type").val("myhome");
+    $("#post_url").val("https://www.myhome.go.kr/hws/portal/sch/selectRsdtRcritNtcView.do");
+    $("#keyword").val("입주자");
+    $("#parsing_config").val(ocr_parsing_config);
+    $("#parsing_type").val("ocr");
+    $("#start_date").val("2025-01-01");
+    $("#end_date").val("2026-12-31");
+    $("#email_send_yn").val("Y");
+    $("#pay_type").val("free");
     $("#pay_amount").val("");
   }
 
@@ -29,7 +54,7 @@
 
     event.preventDefault();
     const formData = new URLSearchParams(new FormData(document.workForm));
-    fetch("/api/addRequest", {
+    fetch("addRequest", {
       method: "POST",
       mode: "same-origin",
       credentials: "same-origin",
@@ -39,7 +64,7 @@
     .then((response) => {
       if (response.status == 200) {
         toastr.success("등록하였습니다");
-        location.href = "getRequests";
+       // location.href = "getRequests";
       } else {
         toastr.warning(response.message);
       }
@@ -127,23 +152,34 @@
             </div>
             <div class="form-group">
               <label>파싱 타입</label>
-              <input type="text" class="form-control" id="parsing_type" name="parsing_type" value="<%= info.parsing_type || '' %>" />
+              <select class="form-control" id="parsing_type" name="parsing_type">
+                <option value="text" <%= info.parsing_type === 'text' ? 'selected' : '' %>>text</option>
+                <option value="ocr" <%= info.parsing_type === 'ocr' ? 'selected' : '' %>>ocr</option>
+              </select>
             </div>
             <div class="form-group">
               <label>시작일자 (YYYY-MM-DD) <span style="color:red;">*</span></label>
-              <input type="text" required class="form-control" id="start_date" name="start_date" value="<%= info.start_date || '' %>" placeholder="YYYY-MM-DD" />
+              <input type="date" required class="form-control" id="start_date" name="start_date" value="<%= info.start_date || '' %>" placeholder="YYYY-MM-DD" />
             </div>
             <div class="form-group">
               <label>종료일자 (YYYY-MM-DD) <span style="color:red;">*</span></label>
-              <input type="text" required class="form-control" id="end_date" name="end_date" value="<%= info.end_date || '' %>" placeholder="YYYY-MM-DD" />
+              <input type="date" required class="form-control" id="end_date" name="end_date" value="<%= info.end_date || '' %>" placeholder="YYYY-MM-DD" />
             </div>
             <div class="form-group">
-              <label>Pay 타입 <span style="color:red;">*</span></label>
-              <input type="text" required class="form-control" id="pay_type" name="pay_type" value="<%= info.pay_type || '' %>" />
+              <label>이메일발송여부<span style="color:red;">*</span></label>
+              <select class="form-control" id="email_send_yn" name="email_send_yn">
+                <option value="Y" <%= info.email_send_yn === 'Y' ? 'selected' : '' %>>yes</option>
+                <option value="N" <%= info.email_send_yn === 'N' ? 'selected' : '' %>>no</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Pay 타입</label>
+              <input type="text"  class="form-control" id="pay_type" name="pay_type" value="<%= info.pay_type || '' %>" />
             </div>
             <div class="form-group">
-              <label>금액 <span style="color:red;">*</span></label>
-              <input type="number" required class="form-control" id="pay_amount" name="pay_amount" value="<%= info.pay_amount || 0 %>" />
+              <label>금액</label>
+              <input type="number"  class="form-control" id="pay_amount" name="pay_amount" value="<%= info.pay_amount || 0 %>" />
             </div>
 
             <div class="form-group">
