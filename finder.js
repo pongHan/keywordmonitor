@@ -60,7 +60,6 @@ const MAX_KEYWORDS = 10; // 최대 키워드 수 제한
 
 // Parse check_interval (e.g., '1d', '6h', '1h', '1m') to milliseconds
 function parseCheckInterval(interval) {
-    log('debug', `Parsing check_interval: value=${interval}, type=${typeof interval}`);
     if (!interval || typeof interval !== 'string') {
         log('error', `Invalid check_interval: not a string (value=${interval})`);
         return null;
@@ -75,7 +74,7 @@ function parseCheckInterval(interval) {
     }
     const value = parseInt(match[1], 10);
     const unit = match[2].toLowerCase();
-    log('debug', `Parsed check_interval: value=${value}, unit=${unit}`);
+    //log('debug', `Parsed check_interval: value=${value}, unit=${unit}`);
     switch (unit) {
         case 'd': // Days
             return value * 24 * 60 * 60 * 1000;

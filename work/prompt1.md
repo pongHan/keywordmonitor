@@ -1932,3 +1932,10 @@ finder.js 반영
    config.check_interval 이 경과하지 않았으면 checkBoard를 실행하지 않음.
    
 
+finder.js 에 km_finder_run 반영 
+  checkBoard()실행후 
+
+  run_id <= auto, run_date <= 오늘날짜, run_cnt ++, run_datetime <= auto set
+  하루에 row가 한개씩 생기며 checkBoard실행시 run_cnt를 1씩 증가함.
+
+  

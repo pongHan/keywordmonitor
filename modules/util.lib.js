@@ -4,6 +4,12 @@ const url = require('url');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+
+// dayjs 플러그인 확장
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // 스텔스 플러그인 등록
 puppeteer.use(StealthPlugin());
@@ -24,11 +30,8 @@ let lastHour = null;
 // 로그 파일 생성 및 관리
 const initializeLogFile = async () => {
     const now = new Date();
-    const year = now.getUTCFullYear();
-    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(now.getUTCDate()).padStart(2, '0');
-    const hour = String(now.getUTCHours() + 9).padStart(2, '0'); // KST (UTC+9)
-    const logFileName = `log${year}${month}${day}${hour}.txt`;
+    const hour = dayjs().tz('Asia/Seoul').format('YYYYMMDDHH');
+    const logFileName = `log${hour}.txt`;
     const logFilePath = path.join(LOG_DIR, logFileName);
 
     if (lastHour !== hour) {
@@ -51,16 +54,17 @@ const initializeLogFile = async () => {
     return currentLogFile;
 };
 
-// 로그 함수
+
+// log 함수 수정
 const log = async (level, message) => {
-    const timestamp = new Date().toISOString();
+    // KST 시간대로 현재 시간 가져오기
+    const timestamp = dayjs().tz('Asia/Seoul').format('YYYY-MM-DDTHH:mm:ss');
     const logLine = `[${timestamp}] ${level.toUpperCase()} - ${message}\n`;
     console.log(logLine.trim());
 
     const logFile = await initializeLogFile();
     await fs.appendFile(logFile, logLine, 'utf8');
 };
-
 
 const sanitizeString = (value) => {
     if (value === null || value === undefined) return '';
