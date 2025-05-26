@@ -169,32 +169,101 @@ async function checkDuplicatePost(config, post) {
     let connection;
     try {
         connection = await db.getConnection();
-        const checkQuery = `
-            SELECT detect_id
-            FROM km_detect
-            WHERE req_id = ?
-            AND post_url = ?
-            AND post_title = ?
-            LIMIT 1
-        `;
-        const checkValues = [
-            config.id,
-            post.link,
-            post.title
-        ];
-        const [existing] = await connection.query(checkQuery, checkValues);
-        if (existing.length > 0) {
-            log('info', `Duplicate found for req_id=${config.id}, post_url=${config.url}, post_title=${post.title}`);
-            return { isDuplicate: true, id: existing[0].detect_id };
+
+        // Normalize post_url: Remove fragment identifiers and query parameters
+        let normalizedUrl = post.link.split('#')[0].split('?')[0];
+        try {
+            const urlObj = new URL(normalizedUrl);
+            normalizedUrl = `${urlObj.protocol}//${urlObj.hostname}${urlObj.pathname}`;
+            normalizedUrl = normalizedUrl.replace(/\/+$/, '');
+            normalizedUrl = decodeURI(normalizedUrl);
+        } catch (error) {
+            log('warning', `Failed to parse URL ${post.link} for normalization: ${error.message}`);
+            normalizedUrl = post.link.split('#')[0].split('?')[0];
         }
-        log('info', `New post for req_id=${config.id}, post_url=${config.url}, post_title=${post.title}`);
-        return { isDuplicate: false };
+
+        // Normalize post_title: Remove time suffix and trim
+        const normalizedTitle = post.title.replace(/ㆍ[\d]+시간 전/, '').trim().toLowerCase();
+
+        log('debug', `Checking duplicate for req_id=${config.id}, normalized_url=${normalizedUrl}, normalized_title=${normalizedTitle}`);
+
+        // For navernews, use similarity-based duplicate check
+        if (config.board_name.toLowerCase() === '네이버뉴스') {
+            const fetchQuery = `
+                SELECT detect_id, post_title
+                FROM km_detect
+                WHERE req_id = ?
+                AND post_url = ?
+            `;
+            const fetchValues = [config.id, normalizedUrl];
+            const [existingPosts] = await connection.query(fetchQuery, fetchValues);
+
+            for (const existing of existingPosts) {
+                const existingTitle = existing.post_title.replace(/ㆍ[\d]+시간 전/, '').trim().toLowerCase();
+                const similarity = calculateSimilarity(normalizedTitle, existingTitle);
+                log('debug', `Comparing titles: "${normalizedTitle}" vs "${existingTitle}" -> Similarity=${(similarity * 100).toFixed(2)}%`);
+                if (similarity >= 0.9) {
+                    log('info', `Duplicate found for req_id=${config.id}, post_url=${normalizedUrl}, post_title=${post.title} (similarity=${(similarity * 100).toFixed(2)}%)`);
+                    return { isDuplicate: true, id: existing.detect_id };
+                }
+            }
+            log('info', `New post for req_id=${config.id}, post_url=${normalizedUrl}, post_title=${post.title}`);
+            return { isDuplicate: false };
+        } else {
+            // For other boards, use exact match
+            const checkQuery = `
+                SELECT detect_id
+                FROM km_detect
+                WHERE req_id = ?
+                AND post_url = ?
+                AND LOWER(post_title) = ?
+                LIMIT 1
+            `;
+            const checkValues = [config.id, normalizedUrl, normalizedTitle];
+            const [existing] = await connection.query(checkQuery, checkValues);
+            if (existing.length > 0) {
+                log('info', `Duplicate found for req_id=${config.id}, post_url=${normalizedUrl}, post_title=${post.title}`);
+                return { isDuplicate: true, id: existing[0].detect_id };
+            }
+            log('info', `New post for req_id=${config.id}, post_url=${normalizedUrl}, post_title=${post.title}`);
+            return { isDuplicate: false };
+        }
     } catch (error) {
         log('error', `Error in checkDuplicatePost: ${error.message}`);
         throw error;
     } finally {
         if (connection) connection.release();
     }
+}
+
+// Calculate Levenshtein Distance between two strings
+function levenshteinDistance(a, b) {
+    const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+
+    // Initialize first row and column
+    for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+
+    // Fill the matrix
+    for (let j = 1; j <= b.length; j++) {
+        for (let i = 1; i <= a.length; i++) {
+            const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+            matrix[j][i] = Math.min(
+                matrix[j][i - 1] + 1, // Deletion
+                matrix[j - 1][i] + 1, // Insertion
+                matrix[j - 1][i - 1] + indicator // Substitution
+            );
+        }
+    }
+    return matrix[b.length][a.length];
+}
+
+// Calculate similarity percentage between two strings
+function calculateSimilarity(str1, str2) {
+    const maxLength = Math.max(str1.length, str2.length);
+    if (maxLength === 0) return 1.0; // Handle empty strings
+    const distance = levenshteinDistance(str1, str2);
+    return 1 - distance / maxLength;
 }
 
 // 게시물 삽입
